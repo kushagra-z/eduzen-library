@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,32 +7,251 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Upload, FileText, FileQuestion, BookOpen } from 'lucide-react';
+import { Upload, FileText, FileQuestion, BookOpen, X, FileUp, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Progress } from '@/components/ui/progress';
+import { FilePreview } from '@/components/FilePreview';
+
+// Define content form state interface
+interface ContentFormState {
+  title: string;
+  description: string;
+  subject: string;
+  contentType: string;
+  file: File | null;
+}
+
+// Define test form state interface
+interface TestFormState {
+  title: string;
+  subject: string;
+  instructions: string;
+  questions: Question[];
+}
+
+interface Question {
+  text: string;
+  options: string[];
+  correctAnswer: string;
+  explanation: string;
+}
+
+const initialContentFormState: ContentFormState = {
+  title: '',
+  description: '',
+  subject: 'english',
+  contentType: 'pdf',
+  file: null
+};
+
+const initialTestFormState: TestFormState = {
+  title: '',
+  subject: 'english',
+  instructions: '',
+  questions: [
+    {
+      text: '',
+      options: ['', '', '', ''],
+      correctAnswer: 'a',
+      explanation: ''
+    }
+  ]
+};
 
 const AdminPage = () => {
   const [selectedTab, setSelectedTab] = useState('upload');
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [contentForm, setContentForm] = useState<ContentFormState>(initialContentFormState);
+  const [testForm, setTestForm] = useState<TestFormState>(initialTestFormState);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const handleUpload = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    setUploading(true);
-    
-    // Simulate upload process
-    setTimeout(() => {
-      setUploading(false);
-      toast.success('File uploaded successfully');
-    }, 2000);
+  // Handle content form field changes
+  const handleContentFormChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setContentForm(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleTestCreate = (e: React.FormEvent) => {
+  // Handle select field changes
+  const handleSelectChange = (name: string, value: string) => {
+    setContentForm(prev => ({ ...prev, [name]: value }));
+  };
+  
+  // Handle file input change
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setContentForm(prev => ({ ...prev, file }));
+  };
+  
+  // Handle test form field changes
+  const handleTestFormChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setTestForm(prev => ({ ...prev, [name]: value }));
+  };
+  
+  // Handle question field changes
+  const handleQuestionChange = (index: number, field: string, value: string) => {
+    setTestForm(prev => {
+      const updatedQuestions = [...prev.questions];
+      updatedQuestions[index] = { 
+        ...updatedQuestions[index], 
+        [field]: value 
+      };
+      return { ...prev, questions: updatedQuestions };
+    });
+  };
+  
+  // Handle option field changes
+  const handleOptionChange = (questionIndex: number, optionIndex: number, value: string) => {
+    setTestForm(prev => {
+      const updatedQuestions = [...prev.questions];
+      const updatedOptions = [...updatedQuestions[questionIndex].options];
+      updatedOptions[optionIndex] = value;
+      updatedQuestions[questionIndex] = { 
+        ...updatedQuestions[questionIndex], 
+        options: updatedOptions 
+      };
+      return { ...prev, questions: updatedQuestions };
+    });
+  };
+  
+  // Add a new question
+  const handleAddQuestion = () => {
+    setTestForm(prev => ({
+      ...prev,
+      questions: [
+        ...prev.questions,
+        {
+          text: '',
+          options: ['', '', '', ''],
+          correctAnswer: 'a',
+          explanation: ''
+        }
+      ]
+    }));
+  };
+  
+  // Remove a file
+  const handleRemoveFile = () => {
+    setContentForm(prev => ({ ...prev, file: null }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+  
+  // Handle content upload
+  const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Simulate creation process
-    setTimeout(() => {
+    // Validate form
+    if (!contentForm.title.trim()) {
+      toast.error('Please enter a title');
+      return;
+    }
+    
+    if (!contentForm.file) {
+      toast.error('Please select a file to upload');
+      return;
+    }
+    
+    setUploading(true);
+    setUploadProgress(0);
+    
+    // Simulate upload progress for demo
+    const interval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 95) {
+          clearInterval(interval);
+          return prev;
+        }
+        return prev + 5;
+      });
+    }, 200);
+    
+    try {
+      // For demo purposes, we'll simulate an upload delay
+      // In production, this is where you would implement actual file upload to Supabase
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      setUploadProgress(100);
+      
+      setTimeout(() => {
+        setUploading(false);
+        setUploadProgress(0);
+        setContentForm(initialContentFormState);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        toast.success('Content uploaded successfully');
+      }, 500);
+      
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload content. Please try again.');
+      setUploading(false);
+      setUploadProgress(0);
+    } finally {
+      clearInterval(interval);
+    }
+  };
+  
+  // Handle test creation
+  const handleTestCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate test form
+    if (!testForm.title.trim()) {
+      toast.error('Please enter a test title');
+      return;
+    }
+    
+    const isValid = testForm.questions.every((question, index) => {
+      if (!question.text.trim()) {
+        toast.error(`Question ${index + 1} is missing text`);
+        return false;
+      }
+      
+      const hasAllOptions = question.options.every(option => option.trim() !== '');
+      if (!hasAllOptions) {
+        toast.error(`Question ${index + 1} is missing one or more options`);
+        return false;
+      }
+      
+      return true;
+    });
+    
+    if (!isValid) return;
+    
+    try {
+      // Simulate test creation
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       toast.success('Test created successfully');
-    }, 1000);
+      setTestForm(initialTestFormState);
+      
+    } catch (error) {
+      console.error('Test creation error:', error);
+      toast.error('Failed to create test. Please try again.');
+    }
+  };
+
+  // Get allowed file types based on selected content type
+  const getAllowedFileTypes = () => {
+    switch (contentForm.contentType) {
+      case 'pdf':
+        return '.pdf';
+      case 'notes':
+      case 'worksheet':
+        return '.pdf,.doc,.docx';
+      case 'video':
+        return '';  // Only URL input for videos
+      default:
+        return '.pdf,.doc,.docx,.jpg,.jpeg,.png';
+    }
   };
 
   return (
@@ -61,18 +281,34 @@ const AdminPage = () => {
               <form onSubmit={handleUpload} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="title">Title</Label>
-                  <Input id="title" placeholder="Enter content title" required />
+                  <Input 
+                    id="title" 
+                    name="title"
+                    value={contentForm.title}
+                    onChange={handleContentFormChange}
+                    placeholder="Enter content title" 
+                    required 
+                  />
                 </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
-                  <Textarea id="description" placeholder="Enter content description" />
+                  <Textarea 
+                    id="description" 
+                    name="description"
+                    value={contentForm.description}
+                    onChange={handleContentFormChange}
+                    placeholder="Enter content description" 
+                  />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="subject">Subject</Label>
-                    <Select defaultValue="english">
+                    <Select 
+                      value={contentForm.subject}
+                      onValueChange={(value) => handleSelectChange('subject', value)}
+                    >
                       <SelectTrigger id="subject">
                         <SelectValue placeholder="Select subject" />
                       </SelectTrigger>
@@ -88,7 +324,10 @@ const AdminPage = () => {
                   
                   <div className="space-y-2">
                     <Label htmlFor="content-type">Content Type</Label>
-                    <Select defaultValue="pdf">
+                    <Select 
+                      value={contentForm.contentType}
+                      onValueChange={(value) => handleSelectChange('contentType', value)}
+                    >
                       <SelectTrigger id="content-type">
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
@@ -102,23 +341,62 @@ const AdminPage = () => {
                   </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="file">File Upload</Label>
-                  <div className="border-2 border-dashed border-muted rounded-md p-8 text-center cursor-pointer hover:bg-muted/20 transition-colors">
-                    <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Drag and drop files here, or click to browse
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Supports PDF, DOCX, JPG, and PNG (Max 10MB)
-                    </p>
-                    <input id="file" type="file" className="hidden" />
+                {contentForm.contentType === 'video' ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="video-url">Video URL</Label>
+                    <Input 
+                      id="video-url" 
+                      name="videoUrl"
+                      placeholder="Enter YouTube or video URL" 
+                      type="url"
+                    />
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="file">File Upload</Label>
+                    {!contentForm.file ? (
+                      <div 
+                        className="border-2 border-dashed border-muted rounded-md p-8 text-center cursor-pointer hover:bg-muted/20 transition-colors"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Drag and drop files here, or click to browse
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Supports PDF, DOCX, JPG, and PNG (Max 10MB)
+                        </p>
+                        <input 
+                          id="file" 
+                          ref={fileInputRef}
+                          type="file"
+                          accept={getAllowedFileTypes()}
+                          onChange={handleFileChange}
+                          className="hidden" 
+                        />
+                      </div>
+                    ) : (
+                      <FilePreview file={contentForm.file} onRemove={handleRemoveFile} />
+                    )}
+                  </div>
+                )}
+                
+                {uploading && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Uploading...</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <Progress value={uploadProgress} className="h-2" />
+                  </div>
+                )}
                 
                 <Button type="submit" className="w-full" disabled={uploading}>
                   {uploading ? (
-                    <>Uploading...</>
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Uploading...
+                    </>
                   ) : (
                     <>
                       <Upload className="mr-2 h-4 w-4" />
@@ -136,12 +414,22 @@ const AdminPage = () => {
               <form onSubmit={handleTestCreate} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="test-title">Test Title</Label>
-                  <Input id="test-title" placeholder="Enter test title" required />
+                  <Input 
+                    id="test-title" 
+                    name="title"
+                    value={testForm.title}
+                    onChange={handleTestFormChange}
+                    placeholder="Enter test title" 
+                    required 
+                  />
                 </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="test-subject">Subject</Label>
-                  <Select defaultValue="english">
+                  <Select 
+                    value={testForm.subject}
+                    onValueChange={(value) => setTestForm(prev => ({ ...prev, subject: value }))}
+                  >
                     <SelectTrigger id="test-subject">
                       <SelectValue placeholder="Select subject" />
                     </SelectTrigger>
@@ -157,51 +445,82 @@ const AdminPage = () => {
                 
                 <div className="space-y-2">
                   <Label htmlFor="instructions">Instructions</Label>
-                  <Textarea id="instructions" placeholder="Enter test instructions" />
+                  <Textarea 
+                    id="instructions" 
+                    name="instructions"
+                    value={testForm.instructions}
+                    onChange={handleTestFormChange}
+                    placeholder="Enter test instructions" 
+                  />
                 </div>
                 
-                <div className="space-y-4 border p-4 rounded-md">
-                  <h3 className="font-medium">Question 1</h3>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="q1-text">Question Text</Label>
-                    <Input id="q1-text" placeholder="Enter question" required />
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <Label>Options</Label>
-                    {['A', 'B', 'C', 'D'].map((option) => (
-                      <div key={option} className="flex gap-2">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
-                          {option}
+                {testForm.questions.map((question, questionIndex) => (
+                  <div key={questionIndex} className="space-y-4 border p-4 rounded-md">
+                    <h3 className="font-medium">Question {questionIndex + 1}</h3>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor={`q${questionIndex}-text`}>Question Text</Label>
+                      <Input 
+                        id={`q${questionIndex}-text`} 
+                        value={question.text}
+                        onChange={(e) => handleQuestionChange(questionIndex, 'text', e.target.value)}
+                        placeholder="Enter question" 
+                        required 
+                      />
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <Label>Options</Label>
+                      {['A', 'B', 'C', 'D'].map((option, optionIndex) => (
+                        <div key={option} className="flex gap-2">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
+                            {option}
+                          </div>
+                          <Input 
+                            placeholder={`Option ${option}`} 
+                            value={question.options[optionIndex]}
+                            onChange={(e) => handleOptionChange(questionIndex, optionIndex, e.target.value)}
+                          />
                         </div>
-                        <Input placeholder={`Option ${option}`} />
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor={`correct-answer-${questionIndex}`}>Correct Answer</Label>
+                      <Select 
+                        value={question.correctAnswer}
+                        onValueChange={(value) => handleQuestionChange(questionIndex, 'correctAnswer', value)}
+                      >
+                        <SelectTrigger id={`correct-answer-${questionIndex}`}>
+                          <SelectValue placeholder="Select correct answer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="a">Option A</SelectItem>
+                          <SelectItem value="b">Option B</SelectItem>
+                          <SelectItem value="c">Option C</SelectItem>
+                          <SelectItem value="d">Option D</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor={`explanation-${questionIndex}`}>Explanation</Label>
+                      <Textarea 
+                        id={`explanation-${questionIndex}`} 
+                        value={question.explanation}
+                        onChange={(e) => handleQuestionChange(questionIndex, 'explanation', e.target.value)}
+                        placeholder="Explain the correct answer" 
+                      />
+                    </div>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="correct-answer">Correct Answer</Label>
-                    <Select defaultValue="a">
-                      <SelectTrigger id="correct-answer">
-                        <SelectValue placeholder="Select correct answer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="a">Option A</SelectItem>
-                        <SelectItem value="b">Option B</SelectItem>
-                        <SelectItem value="c">Option C</SelectItem>
-                        <SelectItem value="d">Option D</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="explanation">Explanation</Label>
-                    <Textarea id="explanation" placeholder="Explain the correct answer" />
-                  </div>
-                </div>
+                ))}
                 
-                <Button variant="outline" type="button" className="w-full">
+                <Button 
+                  variant="outline" 
+                  type="button" 
+                  className="w-full"
+                  onClick={handleAddQuestion}
+                >
                   Add Another Question
                 </Button>
                 
@@ -216,9 +535,65 @@ const AdminPage = () => {
           <TabsContent value="manage" className="space-y-6">
             <Card className="p-6">
               <h2 className="text-xl font-semibold mb-4">Manage Content</h2>
-              <p className="text-center text-muted-foreground py-8">
-                Content management features will be added in a future update.
-              </p>
+              
+              <div className="space-y-4">
+                <div className="flex justify-between mb-4">
+                  <Select defaultValue="all">
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Filter by subject" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Subjects</SelectItem>
+                      <SelectItem value="english">English</SelectItem>
+                      <SelectItem value="hindi">Hindi</SelectItem>
+                      <SelectItem value="mathematics">Mathematics</SelectItem>
+                      <SelectItem value="science">Science</SelectItem>
+                      <SelectItem value="social-studies">Social Studies</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select defaultValue="all-types">
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Filter by type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all-types">All Types</SelectItem>
+                      <SelectItem value="pdf">PDF Documents</SelectItem>
+                      <SelectItem value="notes">Notes</SelectItem>
+                      <SelectItem value="video">Videos</SelectItem>
+                      <SelectItem value="worksheet">Worksheets</SelectItem>
+                      <SelectItem value="test">Tests</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="relative">
+                  <Input 
+                    placeholder="Search content..." 
+                    className="pl-10"
+                  />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </div>
+                
+                <div className="rounded-md border">
+                  <div className="py-3 px-4 text-sm font-medium bg-muted">
+                    No content found. Upload some content first.
+                  </div>
+                </div>
+              </div>
             </Card>
           </TabsContent>
         </Tabs>
