@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { SubjectCard } from '@/components/SubjectCard';
-import { BookOpenText, Flask, Languages, Calculator, BookOpen } from 'lucide-react';
+import { BookOpenText, FlaskConical, Languages, Calculator, BookOpen } from 'lucide-react';
 
 const SUBJECTS = [
   {
@@ -29,7 +29,7 @@ const SUBJECTS = [
     id: 'science',
     title: 'Science',
     description: 'Physics, Chemistry, Biology',
-    icon: <Flask className="h-6 w-6 text-white" />,
+    icon: <FlaskConical className="h-6 w-6 text-white" />,
     color: 'bg-green-600'
   },
   {

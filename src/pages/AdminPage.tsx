@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { FileUpload, Upload, FileText, FileQuestion, BookOpen } from 'lucide-react';
+import { Upload, FileText, FileQuestion, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 
 const AdminPage = () => {
@@ -43,7 +43,7 @@ const AdminPage = () => {
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
           <TabsList className="grid grid-cols-3 w-full">
             <TabsTrigger value="upload">
-              <FileUpload className="mr-2 h-4 w-4" />
+              <Upload className="mr-2 h-4 w-4" />
               Upload Content
             </TabsTrigger>
             <TabsTrigger value="tests">
