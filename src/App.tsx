@@ -11,6 +11,8 @@ import DocumentViewer from "./pages/DocumentViewer";
 import VideoPage from "./pages/VideoPage";
 import TestPage from "./pages/TestPage";
 import AdminPage from "./pages/AdminPage";
+import AdminLogin from "./pages/AdminLogin";
+import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,7 +30,15 @@ const App = () => (
             <Route path="/subjects/:subjectId/document/:documentId" element={<DocumentViewer />} />
             <Route path="/subjects/:subjectId/video/:videoId" element={<VideoPage />} />
             <Route path="/subjects/:subjectId/test/:testId" element={<TestPage />} />
-            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/admin-login" element={<AdminLogin />} />
+            <Route 
+              path="/admin" 
+              element={
+                <ProtectedRoute>
+                  <AdminPage />
+                </ProtectedRoute>
+              } 
+            />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

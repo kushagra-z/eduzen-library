@@ -1,7 +1,9 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { SubjectCard } from '@/components/SubjectCard';
-import { BookOpenText, FlaskConical, Languages, Calculator, BookOpen } from 'lucide-react';
+import { BookOpenText, FlaskConical, Languages, Calculator, BookOpen, Shield } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const SUBJECTS = [
   {
@@ -51,6 +53,14 @@ const HomePage = () => {
         <p className="text-xl text-muted-foreground">
           Access comprehensive study materials, tests, and resources to excel in your Class 10 CBSE exams
         </p>
+        <div className="mt-6">
+          <Link to="/admin-login">
+            <Button variant="outline" size="sm">
+              <Shield className="mr-2 h-4 w-4" />
+              Admin Area
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

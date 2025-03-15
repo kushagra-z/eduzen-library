@@ -1,5 +1,5 @@
-
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,12 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Upload, FileText, FileQuestion, BookOpen, X, FileUp, Loader2 } from 'lucide-react';
+import { Upload, FileText, FileQuestion, BookOpen, X, FileUp, Loader2, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 import { FilePreview } from '@/components/FilePreview';
 
-// Define content form state interface
 interface ContentFormState {
   title: string;
   description: string;
@@ -21,7 +20,6 @@ interface ContentFormState {
   file: File | null;
 }
 
-// Define test form state interface
 interface TestFormState {
   title: string;
   subject: string;
@@ -59,6 +57,7 @@ const initialTestFormState: TestFormState = {
 };
 
 const AdminPage = () => {
+  const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState('upload');
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -66,7 +65,6 @@ const AdminPage = () => {
   const [testForm, setTestForm] = useState<TestFormState>(initialTestFormState);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Handle content form field changes
   const handleContentFormChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
@@ -74,18 +72,15 @@ const AdminPage = () => {
     setContentForm(prev => ({ ...prev, [name]: value }));
   };
   
-  // Handle select field changes
   const handleSelectChange = (name: string, value: string) => {
     setContentForm(prev => ({ ...prev, [name]: value }));
   };
   
-  // Handle file input change
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     setContentForm(prev => ({ ...prev, file }));
   };
   
-  // Handle test form field changes
   const handleTestFormChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
@@ -93,7 +88,6 @@ const AdminPage = () => {
     setTestForm(prev => ({ ...prev, [name]: value }));
   };
   
-  // Handle question field changes
   const handleQuestionChange = (index: number, field: string, value: string) => {
     setTestForm(prev => {
       const updatedQuestions = [...prev.questions];
@@ -105,7 +99,6 @@ const AdminPage = () => {
     });
   };
   
-  // Handle option field changes
   const handleOptionChange = (questionIndex: number, optionIndex: number, value: string) => {
     setTestForm(prev => {
       const updatedQuestions = [...prev.questions];
@@ -119,7 +112,6 @@ const AdminPage = () => {
     });
   };
   
-  // Add a new question
   const handleAddQuestion = () => {
     setTestForm(prev => ({
       ...prev,
@@ -135,7 +127,6 @@ const AdminPage = () => {
     }));
   };
   
-  // Remove a file
   const handleRemoveFile = () => {
     setContentForm(prev => ({ ...prev, file: null }));
     if (fileInputRef.current) {
@@ -143,11 +134,9 @@ const AdminPage = () => {
     }
   };
   
-  // Handle content upload
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
     if (!contentForm.title.trim()) {
       toast.error('Please enter a title');
       return;
@@ -161,7 +150,6 @@ const AdminPage = () => {
     setUploading(true);
     setUploadProgress(0);
     
-    // Simulate upload progress for demo
     const interval = setInterval(() => {
       setUploadProgress(prev => {
         if (prev >= 95) {
@@ -173,8 +161,6 @@ const AdminPage = () => {
     }, 200);
     
     try {
-      // For demo purposes, we'll simulate an upload delay
-      // In production, this is where you would implement actual file upload to Supabase
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       setUploadProgress(100);
@@ -199,11 +185,9 @@ const AdminPage = () => {
     }
   };
   
-  // Handle test creation
   const handleTestCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate test form
     if (!testForm.title.trim()) {
       toast.error('Please enter a test title');
       return;
@@ -227,7 +211,6 @@ const AdminPage = () => {
     if (!isValid) return;
     
     try {
-      // Simulate test creation
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       toast.success('Test created successfully');
@@ -239,7 +222,6 @@ const AdminPage = () => {
     }
   };
 
-  // Get allowed file types based on selected content type
   const getAllowedFileTypes = () => {
     switch (contentForm.contentType) {
       case 'pdf':
@@ -248,16 +230,28 @@ const AdminPage = () => {
       case 'worksheet':
         return '.pdf,.doc,.docx';
       case 'video':
-        return '';  // Only URL input for videos
+        return '';
       default:
         return '.pdf,.doc,.docx,.jpg,.jpeg,.png';
     }
   };
 
+  const handleLogout = () => {
+    sessionStorage.removeItem("adminAuthenticated");
+    toast.success("Logged out successfully");
+    navigate("/admin-login");
+  };
+
   return (
     <div className="container py-12 animate-fade-in">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <Button variant="outline" onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Logout
+          </Button>
+        </div>
         
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
           <TabsList className="grid grid-cols-3 w-full">

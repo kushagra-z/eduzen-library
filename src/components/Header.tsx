@@ -1,27 +1,20 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Book } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-export const Header = () => {
+const Header = () => {
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
-      <div className="container flex h-16 items-center">
-        <Link to="/" className="flex items-center gap-2">
-          <Book className="h-6 w-6 text-primary" />
-          <span className="text-xl font-bold">
-            Edu<span className="text-primary">Zen</span>
-          </span>
+    <header className="flex justify-between items-center p-4 bg-gray-800 text-white">
+      <h1 className="text-xl font-bold">Learning Resources</h1>
+      <nav>
+        <Link to="/admin-login">
+          <Button variant="outline" size="sm">
+            Admin Area
+          </Button>
         </Link>
-        <div className="ml-auto flex items-center gap-4">
-          <Link
-            to="/admin"
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Admin
-          </Link>
-        </div>
-      </div>
+      </nav>
     </header>
   );
 };
+
+export default Header;
