@@ -1,5 +1,7 @@
 // This service will handle all data fetching and management
-// It will be replaced with Supabase client when integrated
+// It now integrates with Supabase for persistent storage
+
+import { supabase } from "@/integrations/supabase/client";
 
 // Types to represent our data model
 export interface Subject {
@@ -19,6 +21,7 @@ export interface ContentItem {
   url?: string;
   youtubeId?: string;
   file?: File;
+  storagePath?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -45,8 +48,6 @@ export interface Test {
   updatedAt: string;
 }
 
-// Temporary storage until Supabase is integrated
-// This simulates a database in localStorage
 class DataService {
   private subjects: Subject[] = [];
   private content: ContentItem[] = [];
@@ -54,6 +55,7 @@ class DataService {
   private initialized = false;
 
   constructor() {
+    // Keep local storage for now as fallback, but we'll primarily use Supabase
     this.loadFromLocalStorage();
     
     // Initialize with default subjects if none exist
@@ -145,33 +147,327 @@ class DataService {
     return this.subjects.find(subject => subject.id === id);
   }
 
-  // Content methods
-  public getContentBySubject(subjectId: string): ContentItem[] {
-    return this.content.filter(item => item.subjectId === subjectId);
+  // Content methods - now with Supabase integration
+  public async getContentBySubject(subjectId: string): Promise<ContentItem[]> {
+    try {
+      // Try to fetch from Supabase first
+      const { data, error } = await supabase
+        .from('content')
+        .select('*')
+        .eq('subject', subjectId);
+      
+      if (error) {
+        console.error('Supabase error fetching content:', error);
+        // Fallback to local data
+        return this.content.filter(item => item.subjectId === subjectId);
+      }
+      
+      if (data && data.length > 0) {
+        // Transform Supabase data to our ContentItem format
+        return data.map(item => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          type: item.content_type as any,
+          subjectId: item.subject,
+          url: item.file_url || item.external_link,
+          youtubeId: item.external_link?.includes('youtube') ? this.extractYoutubeId(item.external_link) : undefined,
+          storagePath: item.storage_path,
+          createdAt: item.created_at,
+          updatedAt: item.updated_at
+        }));
+      }
+      
+      // If no data in Supabase, return local data
+      return this.content.filter(item => item.subjectId === subjectId);
+    } catch (error) {
+      console.error('Error fetching content:', error);
+      return this.content.filter(item => item.subjectId === subjectId);
+    }
   }
 
-  public getContentByType(subjectId: string, type: string): ContentItem[] {
-    return this.content.filter(item => item.subjectId === subjectId && item.type === type);
+  private extractYoutubeId(url?: string): string | undefined {
+    if (!url) return undefined;
+    
+    // Extract YouTube ID from URL (different formats possible)
+    const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+    return match ? match[1] : undefined;
   }
 
-  public getContentById(id: string): ContentItem | undefined {
-    return this.content.find(item => item.id === id);
+  public async getContentByType(subjectId: string, type: string): Promise<ContentItem[]> {
+    try {
+      // Try to fetch from Supabase first
+      const { data, error } = await supabase
+        .from('content')
+        .select('*')
+        .eq('subject', subjectId)
+        .eq('content_type', type);
+      
+      if (error) {
+        console.error('Supabase error fetching content by type:', error);
+        // Fallback to local data
+        return this.content.filter(item => item.subjectId === subjectId && item.type === type);
+      }
+      
+      if (data && data.length > 0) {
+        // Transform Supabase data
+        return data.map(item => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          type: item.content_type as any,
+          subjectId: item.subject,
+          url: item.file_url || item.external_link,
+          youtubeId: item.external_link?.includes('youtube') ? this.extractYoutubeId(item.external_link) : undefined,
+          storagePath: item.storage_path,
+          createdAt: item.created_at,
+          updatedAt: item.updated_at
+        }));
+      }
+      
+      // If no data in Supabase, return local data
+      return this.content.filter(item => item.subjectId === subjectId && item.type === type);
+    } catch (error) {
+      console.error('Error fetching content by type:', error);
+      return this.content.filter(item => item.subjectId === subjectId && item.type === type);
+    }
   }
 
-  public addContent(item: Omit<ContentItem, 'id' | 'createdAt' | 'updatedAt'>): ContentItem {
-    const newItem = {
+  public async getContentById(id: string): Promise<ContentItem | undefined> {
+    try {
+      // Try to fetch from Supabase first
+      const { data, error } = await supabase
+        .from('content')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (error) {
+        console.error('Supabase error fetching content by id:', error);
+        // Fallback to local data
+        return this.content.find(item => item.id === id);
+      }
+      
+      if (data) {
+        // If the content has a file in storage, get a public URL
+        let url = data.file_url || data.external_link;
+        
+        if (data.storage_path) {
+          const { data: storageData } = await supabase
+            .storage
+            .from('documents')
+            .getPublicUrl(data.storage_path);
+          
+          if (storageData && storageData.publicUrl) {
+            url = storageData.publicUrl;
+          }
+        }
+        
+        return {
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          type: data.content_type as any,
+          subjectId: data.subject,
+          url,
+          youtubeId: data.external_link?.includes('youtube') ? this.extractYoutubeId(data.external_link) : undefined,
+          storagePath: data.storage_path,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at
+        };
+      }
+      
+      // If no data in Supabase, return local data
+      return this.content.find(item => item.id === id);
+    } catch (error) {
+      console.error('Error fetching content by id:', error);
+      return this.content.find(item => item.id === id);
+    }
+  }
+
+  public async addContent(item: Omit<ContentItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<ContentItem> {
+    let storagePath = '';
+    let fileUrl = item.url;
+    
+    // Upload file to Supabase Storage if available
+    if (item.file && ['pdf', 'notes', 'worksheet'].includes(item.type)) {
+      try {
+        // Create a unique path for the file
+        storagePath = `${item.subjectId}/${item.type}/${Date.now()}_${item.file.name}`;
+        
+        const { data, error } = await supabase
+          .storage
+          .from('documents')
+          .upload(storagePath, item.file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+        
+        if (error) {
+          console.error('Error uploading file to storage:', error);
+        } else if (data) {
+          console.log('File uploaded successfully:', data.path);
+          
+          // Get the public URL
+          const { data: urlData } = await supabase
+            .storage
+            .from('documents')
+            .getPublicUrl(storagePath);
+          
+          if (urlData) {
+            fileUrl = urlData.publicUrl;
+            console.log('Public URL:', fileUrl);
+          }
+        }
+      } catch (error) {
+        console.error('File upload error:', error);
+      }
+    }
+    
+    // Add to Supabase database
+    try {
+      const { data, error } = await supabase
+        .from('content')
+        .insert([{
+          title: item.title,
+          description: item.description,
+          subject: item.subjectId,
+          content_type: item.type,
+          external_link: item.type === 'video' ? item.youtubeId : null,
+          file_url: fileUrl,
+          storage_path: storagePath || null
+        }])
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error adding content to Supabase:', error);
+      } else if (data) {
+        console.log('Content added to Supabase:', data);
+        
+        // Create the complete content item with the ID from Supabase
+        const newItem: ContentItem = {
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          type: data.content_type as any,
+          subjectId: data.subject,
+          url: fileUrl || data.external_link,
+          youtubeId: item.youtubeId,
+          storagePath: data.storage_path,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at
+        };
+        
+        // Also add to local data for redundancy
+        this.content.push(newItem);
+        this.saveToLocalStorage();
+        
+        return newItem;
+      }
+    } catch (error) {
+      console.error('Error in Supabase operation:', error);
+    }
+    
+    // Fallback to local storage if Supabase fails
+    const localItem = {
       ...item,
       id: `${item.subjectId}-${item.type}-${Date.now()}`,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      url: fileUrl,
+      storagePath
     };
-
-    this.content.push(newItem);
+    
+    this.content.push(localItem);
     this.saveToLocalStorage();
-    return newItem;
+    return localItem;
   }
 
-  public updateContent(id: string, updates: Partial<ContentItem>): ContentItem | undefined {
+  public async updateContent(id: string, updates: Partial<ContentItem>): Promise<ContentItem | undefined> {
+    try {
+      // Handle file upload for updates if needed
+      let storagePath = updates.storagePath;
+      let fileUrl = updates.url;
+      
+      if (updates.file && ['pdf', 'notes', 'worksheet'].includes(updates.type || '')) {
+        // Create a unique path for the file
+        storagePath = `${updates.subjectId}/${updates.type}/${Date.now()}_${updates.file.name}`;
+        
+        const { data, error } = await supabase
+          .storage
+          .from('documents')
+          .upload(storagePath, updates.file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+        
+        if (error) {
+          console.error('Error uploading updated file to storage:', error);
+        } else if (data) {
+          // Get the public URL
+          const { data: urlData } = await supabase
+            .storage
+            .from('documents')
+            .getPublicUrl(storagePath);
+          
+          if (urlData) {
+            fileUrl = urlData.publicUrl;
+          }
+        }
+      }
+      
+      // Update in Supabase
+      const { data, error } = await supabase
+        .from('content')
+        .update({
+          title: updates.title,
+          description: updates.description,
+          subject: updates.subjectId,
+          content_type: updates.type,
+          external_link: updates.type === 'video' ? updates.youtubeId : null,
+          file_url: fileUrl,
+          storage_path: storagePath,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error updating content in Supabase:', error);
+      } else if (data) {
+        // Also update local cache
+        const index = this.content.findIndex(item => item.id === id);
+        if (index !== -1) {
+          this.content[index] = {
+            ...this.content[index],
+            ...updates,
+            url: fileUrl || data.file_url || data.external_link,
+            storagePath: storagePath || data.storage_path,
+            updatedAt: data.updated_at
+          };
+          this.saveToLocalStorage();
+        }
+        
+        return {
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          type: data.content_type as any,
+          subjectId: data.subject,
+          url: fileUrl || data.file_url || data.external_link,
+          youtubeId: updates.youtubeId,
+          storagePath: data.storage_path,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at
+        };
+      }
+    } catch (error) {
+      console.error('Error in Supabase update operation:', error);
+    }
+    
+    // Fallback to local update if Supabase fails
     const index = this.content.findIndex(item => item.id === id);
     if (index !== -1) {
       this.content[index] = {
@@ -182,20 +478,64 @@ class DataService {
       this.saveToLocalStorage();
       return this.content[index];
     }
+    
     return undefined;
   }
 
-  public deleteContent(id: string): boolean {
+  public async deleteContent(id: string): Promise<boolean> {
+    try {
+      // First get the content to see if we need to delete a file
+      const content = await this.getContentById(id);
+      
+      if (content && content.storagePath) {
+        // Delete the file from storage first
+        const { error: storageError } = await supabase
+          .storage
+          .from('documents')
+          .remove([content.storagePath]);
+        
+        if (storageError) {
+          console.error('Error deleting file from storage:', storageError);
+        }
+      }
+      
+      // Delete from Supabase
+      const { error } = await supabase
+        .from('content')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Error deleting content from Supabase:', error);
+      } else {
+        // Also delete from local storage
+        const initialLength = this.content.length;
+        this.content = this.content.filter(item => item.id !== id);
+        const success = initialLength > this.content.length;
+        
+        if (success) {
+          this.saveToLocalStorage();
+        }
+        
+        return true;
+      }
+    } catch (error) {
+      console.error('Error in delete operation:', error);
+    }
+    
+    // Fallback to local delete if Supabase fails
     const initialLength = this.content.length;
     this.content = this.content.filter(item => item.id !== id);
     const success = initialLength > this.content.length;
+    
     if (success) {
       this.saveToLocalStorage();
     }
+    
     return success;
   }
 
-  // Test methods
+  // Test methods (keeping local for now, can be migrated to Supabase later)
   public getTests(subjectId?: string): Test[] {
     if (subjectId) {
       return this.tests.filter(test => test.subject === subjectId);

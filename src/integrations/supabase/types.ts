@@ -18,6 +18,7 @@ export type Database = {
           external_link: string | null
           file_url: string | null
           id: string
+          storage_path: string | null
           subject: string
           title: string
           updated_at: string
@@ -30,6 +31,7 @@ export type Database = {
           external_link?: string | null
           file_url?: string | null
           id?: string
+          storage_path?: string | null
           subject: string
           title: string
           updated_at?: string
@@ -42,6 +44,7 @@ export type Database = {
           external_link?: string | null
           file_url?: string | null
           id?: string
+          storage_path?: string | null
           subject?: string
           title?: string
           updated_at?: string

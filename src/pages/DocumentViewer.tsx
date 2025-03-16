@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { PDFViewer } from '@/components/PDFViewer';
 import { EmptyState } from '@/components/EmptyState';
 import { dataService, ContentItem } from '@/services/dataService';
+import { toast } from 'sonner';
 
 const DocumentViewer = () => {
   const { subjectId, documentId } = useParams<{ subjectId: string; documentId: string }>();
@@ -15,21 +16,29 @@ const DocumentViewer = () => {
   useEffect(() => {
     const fetchDocument = async () => {
       setLoading(true);
-      if (documentId) {
-        console.log('Fetching document with ID:', documentId);
-        const documentData = dataService.getContentById(documentId);
-        console.log('Document data fetched:', documentData);
-        
-        if (documentData && ['pdf', 'notes', 'worksheet'].includes(documentData.type)) {
-          console.log('Document URL:', documentData.url);
-          setDocument(documentData);
+      try {
+        if (documentId) {
+          console.log('Fetching document with ID:', documentId);
+          const documentData = await dataService.getContentById(documentId);
+          console.log('Document data fetched:', documentData);
+          
+          if (documentData && ['pdf', 'notes', 'worksheet'].includes(documentData.type)) {
+            console.log('Document URL:', documentData.url);
+            setDocument(documentData);
+          } else {
+            console.error('Document not found or not of correct type');
+            toast.error('Document not found or has an invalid format');
+          }
         } else {
-          console.error('Document not found or not of correct type');
+          console.error('No document ID provided');
+          toast.error('No document ID provided');
         }
-      } else {
-        console.error('No document ID provided');
+      } catch (error) {
+        console.error('Error fetching document:', error);
+        toast.error('Failed to load document');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchDocument();

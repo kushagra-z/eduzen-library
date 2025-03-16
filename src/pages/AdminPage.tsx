@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -78,14 +77,12 @@ const AdminPage = () => {
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Load content when the manage tab is selected
   useEffect(() => {
     if (selectedTab === 'manage') {
       loadContent();
     }
   }, [selectedTab]);
 
-  // Apply filters to content
   useEffect(() => {
     let filtered = [...contentItems];
     
@@ -109,17 +106,21 @@ const AdminPage = () => {
   }, [contentItems, contentFilter]);
   
   const loadContent = async () => {
-    // This would be replaced with a fetch to Supabase in production
-    const allSubjects = dataService.getSubjects();
-    const allContent: ContentItem[] = [];
-    
-    allSubjects.forEach(subject => {
-      const subjectContent = dataService.getContentBySubject(subject.id);
-      allContent.push(...subjectContent);
-    });
-    
-    setContentItems(allContent);
-    setFilteredContent(allContent);
+    try {
+      const allSubjects = dataService.getSubjects();
+      const allContent: ContentItem[] = [];
+      
+      for (const subject of allSubjects) {
+        const subjectContent = await dataService.getContentBySubject(subject.id);
+        allContent.push(...subjectContent);
+      }
+      
+      setContentItems(allContent);
+      setFilteredContent(allContent);
+    } catch (error) {
+      console.error('Error loading content:', error);
+      toast.error('Failed to load content');
+    }
   };
   
   const handleContentFormChange = (
@@ -223,20 +224,16 @@ const AdminPage = () => {
     }, 200);
     
     try {
-      // In production, this would upload the file to storage and save metadata to the database
-      // For now, we'll just simulate the upload and save to our data service
-      
-      // Create a new content item
       const newContent = {
         title: contentForm.title,
         description: contentForm.description,
         subjectId: contentForm.subject,
         type: contentForm.contentType as any,
+        file: contentForm.file,
         youtubeId: contentForm.youtubeId
       };
       
-      // Add to data service
-      dataService.addContent(newContent);
+      await dataService.addContent(newContent);
       
       setUploadProgress(100);
       
@@ -247,7 +244,8 @@ const AdminPage = () => {
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
-        toast.success('Content uploaded successfully');
+        toast.success('Content uploaded successfully to Supabase');
+        loadContent();
       }, 500);
       
     } catch (error) {
@@ -296,7 +294,6 @@ const AdminPage = () => {
     if (!isValid) return;
     
     try {
-      // Transform the form data to match our data model
       const questions = testForm.questions.map((q, index) => ({
         id: `q${index + 1}`,
         text: q.text,
@@ -308,7 +305,6 @@ const AdminPage = () => {
         explanation: q.explanation
       }));
       
-      // Create the test object
       const newTest: Omit<Test, 'id' | 'createdAt' | 'updatedAt'> = {
         title: testForm.title,
         description: testForm.description,
@@ -317,7 +313,6 @@ const AdminPage = () => {
         questions
       };
       
-      // Add to data service
       dataService.addTest(newTest);
       
       toast.success('Test created successfully');
@@ -329,14 +324,19 @@ const AdminPage = () => {
     }
   };
 
-  const handleDeleteContent = (id: string) => {
+  const handleDeleteContent = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this content? This action cannot be undone.')) {
-      const success = dataService.deleteContent(id);
-      if (success) {
-        toast.success('Content deleted successfully');
-        loadContent(); // Reload content list
-      } else {
-        toast.error('Failed to delete content');
+      try {
+        const success = await dataService.deleteContent(id);
+        if (success) {
+          toast.success('Content deleted successfully');
+          loadContent();
+        } else {
+          toast.error('Failed to delete content');
+        }
+      } catch (error) {
+        console.error('Delete error:', error);
+        toast.error('An error occurred while deleting the content');
       }
     }
   };
