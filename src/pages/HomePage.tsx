@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { SubjectCard } from '@/components/SubjectCard';
 import { Input } from '@/components/ui/input';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, Search, Book, BookOpen, Calculator, Flask, Globe } from 'lucide-react';
 import { dataService, Subject } from '@/services/dataService';
 
 const HomePage = () => {
@@ -10,6 +10,24 @@ const HomePage = () => {
   const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Map icons to subject IDs
+  const getSubjectIcon = (subjectId: string) => {
+    switch(subjectId) {
+      case 'english':
+        return <BookOpen className="h-6 w-6 text-white" />;
+      case 'hindi':
+        return <Book className="h-6 w-6 text-white" />;
+      case 'mathematics':
+        return <Calculator className="h-6 w-6 text-white" />;
+      case 'science':
+        return <Flask className="h-6 w-6 text-white" />;
+      case 'social-studies':
+        return <Globe className="h-6 w-6 text-white" />;
+      default:
+        return <Book className="h-6 w-6 text-white" />;
+    }
+  };
 
   useEffect(() => {
     const loadSubjects = async () => {
@@ -65,6 +83,8 @@ const HomePage = () => {
               key={subject.id}
               id={subject.id}
               title={subject.title}
+              description={subject.description}
+              icon={getSubjectIcon(subject.id)}
               color={subject.color}
             />
           ))}

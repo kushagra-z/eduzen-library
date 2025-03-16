@@ -1,4 +1,3 @@
-
 // This service will handle all data fetching and management
 // It will be replaced with Supabase client when integrated
 
@@ -6,7 +5,9 @@
 export interface Subject {
   id: string;
   title: string;
+  description: string;
   color: string;
+  icon?: React.ReactNode; // Added icon property as optional in the interface
 }
 
 export interface ContentItem {
@@ -102,11 +103,36 @@ class DataService {
   private initializeDefaultData() {
     // Initialize with default subjects
     this.subjects = [
-      { id: 'english', title: 'English', color: 'bg-blue-600' },
-      { id: 'hindi', title: 'Hindi', color: 'bg-red-600' },
-      { id: 'mathematics', title: 'Mathematics', color: 'bg-amber-600' },
-      { id: 'science', title: 'Science', color: 'bg-green-600' },
-      { id: 'social-studies', title: 'Social Studies', color: 'bg-purple-600' }
+      { 
+        id: 'english', 
+        title: 'English', 
+        description: 'Improve your language skills with CBSE English curriculum',
+        color: 'bg-blue-600'
+      },
+      { 
+        id: 'hindi', 
+        title: 'Hindi', 
+        description: 'Enhance your Hindi reading, writing and comprehension',
+        color: 'bg-red-600'
+      },
+      { 
+        id: 'mathematics', 
+        title: 'Mathematics', 
+        description: 'Master key mathematical concepts and problem-solving',
+        color: 'bg-amber-600'
+      },
+      { 
+        id: 'science', 
+        title: 'Science', 
+        description: 'Explore physics, chemistry and biology fundamentals',
+        color: 'bg-green-600'
+      },
+      { 
+        id: 'social-studies', 
+        title: 'Social Studies', 
+        description: 'Learn about history, geography, economics and civics',
+        color: 'bg-purple-600'
+      }
     ];
   }
 
