@@ -7,9 +7,6 @@ import { PDFViewer } from '@/components/PDFViewer';
 import { EmptyState } from '@/components/EmptyState';
 import { dataService, ContentItem } from '@/services/dataService';
 
-// Placeholder PDF URL for demo purposes until file storage is implemented
-const PLACEHOLDER_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf';
-
 const DocumentViewer = () => {
   const { subjectId, documentId } = useParams<{ subjectId: string; documentId: string }>();
   const [document, setDocument] = useState<ContentItem | null>(null);
@@ -54,9 +51,6 @@ const DocumentViewer = () => {
     );
   }
 
-  // In a production app, this would use the document's actual URL from storage
-  const documentUrl = document.url || PLACEHOLDER_PDF;
-
   return (
     <div className="container py-6 animate-fade-in">
       <Button variant="ghost" asChild className="mb-4">
@@ -73,7 +67,7 @@ const DocumentViewer = () => {
 
       <div className="bg-card rounded-lg shadow-lg overflow-hidden">
         <PDFViewer
-          url={documentUrl}
+          url={document.url}
           title={document.title}
         />
       </div>
