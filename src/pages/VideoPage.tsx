@@ -5,48 +5,26 @@ import { ChevronLeft, ExternalLink, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/EmptyState';
-
-// Mock data - In a real app, this would be fetched from Supabase
-const MOCK_VIDEOS = {
-  'eng-video-1': {
-    title: 'Poetry Explanation',
-    description: 'Detailed explanation of all poems',
-    youtubeId: 'dQw4w9WgXcQ', // Example YouTube ID
-    subject: 'english'
-  },
-  'math-video-1': {
-    title: 'Quadratic Equations Tutorial',
-    description: 'Step-by-step tutorial on solving quadratic equations',
-    youtubeId: 'WHWfr_xUl9U', // Example YouTube ID
-    subject: 'mathematics'
-  },
-  'sci-video-1': {
-    title: 'Chemical Reactions',
-    description: 'Visual explanations of different types of chemical reactions',
-    youtubeId: '5BIk3fGHjd8', // Example YouTube ID
-    subject: 'science'
-  },
-  'sst-video-1': {
-    title: 'Nationalism in India',
-    description: 'Video lecture on nationalist movements',
-    youtubeId: 'WzTSE6kcLwY', // Example YouTube ID
-    subject: 'social-studies'
-  },
-};
+import { dataService, ContentItem } from '@/services/dataService';
 
 const VideoPage = () => {
   const { subjectId, videoId } = useParams<{ subjectId: string; videoId: string }>();
-  const [video, setVideo] = useState<any | null>(null);
+  const [video, setVideo] = useState<ContentItem | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate fetching video from backend
-    setTimeout(() => {
-      if (videoId && MOCK_VIDEOS[videoId as keyof typeof MOCK_VIDEOS]) {
-        setVideo(MOCK_VIDEOS[videoId as keyof typeof MOCK_VIDEOS]);
+    const fetchVideo = async () => {
+      setLoading(true);
+      if (videoId) {
+        const videoData = dataService.getContentById(videoId);
+        if (videoData && videoData.type === 'video') {
+          setVideo(videoData);
+        }
       }
       setLoading(false);
-    }, 800);
+    };
+
+    fetchVideo();
   }, [videoId]);
 
   if (loading) {
@@ -73,8 +51,9 @@ const VideoPage = () => {
     );
   }
 
-  const youtubeUrl = `https://www.youtube.com/embed/${video.youtubeId}`;
-  const directYoutubeUrl = `https://www.youtube.com/watch?v=${video.youtubeId}`;
+  const youtubeId = video.youtubeId || '';
+  const youtubeUrl = `https://www.youtube.com/embed/${youtubeId}`;
+  const directYoutubeUrl = `https://www.youtube.com/watch?v=${youtubeId}`;
 
   return (
     <div className="container py-6 animate-fade-in">

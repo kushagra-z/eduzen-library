@@ -1,80 +1,81 @@
 
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
 import { SubjectCard } from '@/components/SubjectCard';
-import { BookOpenText, FlaskConical, Languages, Calculator, BookOpen, Shield } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-
-const SUBJECTS = [
-  {
-    id: 'english',
-    title: 'English',
-    description: 'Literature, Grammar, Writing Skills',
-    icon: <BookOpenText className="h-6 w-6 text-white" />,
-    color: 'bg-blue-600'
-  },
-  {
-    id: 'hindi',
-    title: 'Hindi',
-    description: 'व्याकरण, साहित्य, लेखन कौशल',
-    icon: <Languages className="h-6 w-6 text-white" />,
-    color: 'bg-red-600'
-  },
-  {
-    id: 'mathematics',
-    title: 'Mathematics',
-    description: 'Algebra, Geometry, Trigonometry, Statistics',
-    icon: <Calculator className="h-6 w-6 text-white" />,
-    color: 'bg-amber-600'
-  },
-  {
-    id: 'science',
-    title: 'Science',
-    description: 'Physics, Chemistry, Biology',
-    icon: <FlaskConical className="h-6 w-6 text-white" />,
-    color: 'bg-green-600'
-  },
-  {
-    id: 'social-studies',
-    title: 'Social Studies',
-    description: 'History, Geography, Political Science, Economics',
-    icon: <BookOpen className="h-6 w-6 text-white" />,
-    color: 'bg-purple-600'
-  }
-];
+import { Input } from '@/components/ui/input';
+import { Loader2, Search } from 'lucide-react';
+import { dataService, Subject } from '@/services/dataService';
 
 const HomePage = () => {
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadSubjects = async () => {
+      setLoading(true);
+      const allSubjects = dataService.getSubjects();
+      setSubjects(allSubjects);
+      setFilteredSubjects(allSubjects);
+      setLoading(false);
+    };
+
+    loadSubjects();
+  }, []);
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value.toLowerCase();
+    setSearchQuery(query);
+    
+    const filtered = subjects.filter(subject => 
+      subject.title.toLowerCase().includes(query)
+    );
+    
+    setFilteredSubjects(filtered);
+  };
+
   return (
     <div className="container py-12 animate-fade-in">
-      <div className="text-center max-w-3xl mx-auto mb-16">
-        <h1 className="text-4xl font-bold mb-6">
-          CBSE Class 10 Learning Resources
-        </h1>
-        <p className="text-xl text-muted-foreground">
-          Access comprehensive study materials, tests, and resources to excel in your Class 10 CBSE exams
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-bold mb-4">Class 10 Learning Resources</h1>
+        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          Access all your CBSE Class 10 textbooks, videos, notes, tests, and more in one place
         </p>
-        <div className="mt-6">
-          <Link to="/admin-login">
-            <Button variant="outline" size="sm">
-              <Shield className="mr-2 h-4 w-4" />
-              Admin Area
-            </Button>
-          </Link>
-        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {SUBJECTS.map((subject) => (
-          <SubjectCard 
-            key={subject.id}
-            id={subject.id}
-            title={subject.title}
-            description={subject.description}
-            icon={subject.icon}
-            color={subject.color}
-          />
-        ))}
+      <div className="relative max-w-md mx-auto mb-12">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-5 w-5" />
+        <Input
+          className="pl-10"
+          placeholder="Search subjects..."
+          value={searchQuery}
+          onChange={handleSearch}
+        />
       </div>
+
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="h-8 w-8 text-primary animate-spin" />
+          <span className="ml-2">Loading subjects...</span>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredSubjects.map((subject) => (
+            <SubjectCard
+              key={subject.id}
+              id={subject.id}
+              title={subject.title}
+              color={subject.color}
+            />
+          ))}
+          
+          {filteredSubjects.length === 0 && (
+            <div className="col-span-full text-center py-8">
+              <p className="text-lg text-muted-foreground">No subjects found matching "{searchQuery}"</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -7,10 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Upload, FileText, FileQuestion, BookOpen, X, FileUp, Loader2, LogOut } from 'lucide-react';
+import { Upload, FileText, FileQuestion, BookOpen, X, FileUp, Loader2, LogOut, Trash } from 'lucide-react';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 import { FilePreview } from '@/components/FilePreview';
+import { dataService, ContentItem, Test } from '@/services/dataService';
 
 interface ContentFormState {
   title: string;
@@ -18,16 +20,18 @@ interface ContentFormState {
   subject: string;
   contentType: string;
   file: File | null;
+  youtubeId?: string;
 }
 
 interface TestFormState {
   title: string;
   subject: string;
+  description: string;
   instructions: string;
-  questions: Question[];
+  questions: QuestionFormState[];
 }
 
-interface Question {
+interface QuestionFormState {
   text: string;
   options: string[];
   correctAnswer: string;
@@ -39,12 +43,14 @@ const initialContentFormState: ContentFormState = {
   description: '',
   subject: 'english',
   contentType: 'pdf',
-  file: null
+  file: null,
+  youtubeId: ''
 };
 
 const initialTestFormState: TestFormState = {
   title: '',
   subject: 'english',
+  description: '',
   instructions: '',
   questions: [
     {
@@ -63,7 +69,58 @@ const AdminPage = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [contentForm, setContentForm] = useState<ContentFormState>(initialContentFormState);
   const [testForm, setTestForm] = useState<TestFormState>(initialTestFormState);
+  const [contentItems, setContentItems] = useState<ContentItem[]>([]);
+  const [filteredContent, setFilteredContent] = useState<ContentItem[]>([]);
+  const [contentFilter, setContentFilter] = useState({
+    subject: 'all',
+    type: 'all-types',
+    search: ''
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Load content when the manage tab is selected
+  useEffect(() => {
+    if (selectedTab === 'manage') {
+      loadContent();
+    }
+  }, [selectedTab]);
+
+  // Apply filters to content
+  useEffect(() => {
+    let filtered = [...contentItems];
+    
+    if (contentFilter.subject !== 'all') {
+      filtered = filtered.filter(item => item.subjectId === contentFilter.subject);
+    }
+    
+    if (contentFilter.type !== 'all-types') {
+      filtered = filtered.filter(item => item.type === contentFilter.type);
+    }
+    
+    if (contentFilter.search) {
+      const search = contentFilter.search.toLowerCase();
+      filtered = filtered.filter(item => 
+        item.title.toLowerCase().includes(search) || 
+        item.description.toLowerCase().includes(search)
+      );
+    }
+    
+    setFilteredContent(filtered);
+  }, [contentItems, contentFilter]);
+  
+  const loadContent = async () => {
+    // This would be replaced with a fetch to Supabase in production
+    const allSubjects = dataService.getSubjects();
+    const allContent: ContentItem[] = [];
+    
+    allSubjects.forEach(subject => {
+      const subjectContent = dataService.getContentBySubject(subject.id);
+      allContent.push(...subjectContent);
+    });
+    
+    setContentItems(allContent);
+    setFilteredContent(allContent);
+  };
   
   const handleContentFormChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -142,8 +199,13 @@ const AdminPage = () => {
       return;
     }
     
-    if (!contentForm.file) {
+    if (contentForm.contentType !== 'video' && !contentForm.file) {
       toast.error('Please select a file to upload');
+      return;
+    }
+    
+    if (contentForm.contentType === 'video' && !contentForm.youtubeId) {
+      toast.error('Please enter a YouTube ID');
       return;
     }
     
@@ -161,7 +223,20 @@ const AdminPage = () => {
     }, 200);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // In production, this would upload the file to storage and save metadata to the database
+      // For now, we'll just simulate the upload and save to our data service
+      
+      // Create a new content item
+      const newContent = {
+        title: contentForm.title,
+        description: contentForm.description,
+        subjectId: contentForm.subject,
+        type: contentForm.contentType as any,
+        youtubeId: contentForm.youtubeId
+      };
+      
+      // Add to data service
+      dataService.addContent(newContent);
       
       setUploadProgress(100);
       
@@ -193,6 +268,11 @@ const AdminPage = () => {
       return;
     }
     
+    if (!testForm.description.trim()) {
+      toast.error('Please enter a test description');
+      return;
+    }
+    
     const isValid = testForm.questions.every((question, index) => {
       if (!question.text.trim()) {
         toast.error(`Question ${index + 1} is missing text`);
@@ -205,13 +285,40 @@ const AdminPage = () => {
         return false;
       }
       
+      if (!question.explanation.trim()) {
+        toast.error(`Question ${index + 1} is missing an explanation`);
+        return false;
+      }
+      
       return true;
     });
     
     if (!isValid) return;
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Transform the form data to match our data model
+      const questions = testForm.questions.map((q, index) => ({
+        id: `q${index + 1}`,
+        text: q.text,
+        options: q.options.map((text, i) => ({
+          id: ['a', 'b', 'c', 'd'][i],
+          text
+        })),
+        correctAnswerId: q.correctAnswer,
+        explanation: q.explanation
+      }));
+      
+      // Create the test object
+      const newTest: Omit<Test, 'id' | 'createdAt' | 'updatedAt'> = {
+        title: testForm.title,
+        description: testForm.description,
+        subject: testForm.subject,
+        instructions: testForm.instructions,
+        questions
+      };
+      
+      // Add to data service
+      dataService.addTest(newTest);
       
       toast.success('Test created successfully');
       setTestForm(initialTestFormState);
@@ -219,6 +326,18 @@ const AdminPage = () => {
     } catch (error) {
       console.error('Test creation error:', error);
       toast.error('Failed to create test. Please try again.');
+    }
+  };
+
+  const handleDeleteContent = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this content? This action cannot be undone.')) {
+      const success = dataService.deleteContent(id);
+      if (success) {
+        toast.success('Content deleted successfully');
+        loadContent(); // Reload content list
+      } else {
+        toast.error('Failed to delete content');
+      }
     }
   };
 
@@ -240,6 +359,13 @@ const AdminPage = () => {
     sessionStorage.removeItem("adminAuthenticated");
     toast.success("Logged out successfully");
     navigate("/admin-login");
+  };
+
+  const handleFilterChange = (filterType: string, value: string) => {
+    setContentFilter(prev => ({
+      ...prev,
+      [filterType]: value
+    }));
   };
 
   return (
@@ -337,13 +463,17 @@ const AdminPage = () => {
                 
                 {contentForm.contentType === 'video' ? (
                   <div className="space-y-2">
-                    <Label htmlFor="video-url">Video URL</Label>
+                    <Label htmlFor="youtubeId">YouTube Video ID</Label>
                     <Input 
-                      id="video-url" 
-                      name="videoUrl"
-                      placeholder="Enter YouTube or video URL" 
-                      type="url"
+                      id="youtubeId" 
+                      name="youtubeId"
+                      value={contentForm.youtubeId}
+                      onChange={handleContentFormChange}
+                      placeholder="e.g. dQw4w9WgXcQ (from youtube.com/watch?v=dQw4w9WgXcQ)" 
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Enter only the ID part from a YouTube URL, not the full URL
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -414,6 +544,18 @@ const AdminPage = () => {
                     value={testForm.title}
                     onChange={handleTestFormChange}
                     placeholder="Enter test title" 
+                    required 
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="test-description">Description</Label>
+                  <Textarea 
+                    id="test-description" 
+                    name="description"
+                    value={testForm.description}
+                    onChange={handleTestFormChange}
+                    placeholder="Enter test description" 
                     required 
                   />
                 </div>
@@ -532,7 +674,10 @@ const AdminPage = () => {
               
               <div className="space-y-4">
                 <div className="flex justify-between mb-4">
-                  <Select defaultValue="all">
+                  <Select 
+                    value={contentFilter.subject}
+                    onValueChange={(value) => handleFilterChange('subject', value)}
+                  >
                     <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Filter by subject" />
                     </SelectTrigger>
@@ -546,7 +691,10 @@ const AdminPage = () => {
                     </SelectContent>
                   </Select>
                   
-                  <Select defaultValue="all-types">
+                  <Select 
+                    value={contentFilter.type}
+                    onValueChange={(value) => handleFilterChange('type', value)}
+                  >
                     <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Filter by type" />
                     </SelectTrigger>
@@ -565,6 +713,8 @@ const AdminPage = () => {
                   <Input 
                     placeholder="Search content..." 
                     className="pl-10"
+                    value={contentFilter.search}
+                    onChange={(e) => handleFilterChange('search', e.target.value)}
                   />
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -582,10 +732,30 @@ const AdminPage = () => {
                   </svg>
                 </div>
                 
-                <div className="rounded-md border">
-                  <div className="py-3 px-4 text-sm font-medium bg-muted">
-                    No content found. Upload some content first.
-                  </div>
+                <div className="rounded-md border overflow-hidden">
+                  {filteredContent.length > 0 ? (
+                    <div className="divide-y">
+                      {filteredContent.map((item, index) => (
+                        <div key={item.id} className="p-4 flex justify-between items-center">
+                          <div>
+                            <h3 className="font-medium">{item.title}</h3>
+                            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                              <span className="capitalize">{item.type}</span>
+                              <span>•</span>
+                              <span className="capitalize">{item.subjectId}</span>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteContent(item.id)}>
+                            <Trash className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-3 px-4 text-sm font-medium bg-muted">
+                      No content found. Upload some content first.
+                    </div>
+                  )}
                 </div>
               </div>
             </Card>

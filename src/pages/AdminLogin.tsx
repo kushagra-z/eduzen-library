@@ -1,48 +1,57 @@
 
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Shield } from "lucide-react";
-import { toast } from "sonner";
-
-const ADMIN_PASSWORD = "lovemelikeyoudo";
+import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
+import { toast } from 'sonner';
+import { Lock } from 'lucide-react';
 
 const AdminLogin = () => {
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const from = location.state?.from?.pathname || '/admin';
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
 
-    // Simple password check
-    setTimeout(() => {
-      if (password === ADMIN_PASSWORD) {
-        // Store authentication in session storage (cleared when browser is closed)
-        sessionStorage.setItem("adminAuthenticated", "true");
-        toast.success("Login successful!");
-        navigate("/admin");
+    try {
+      // Check against hardcoded password - this will be replaced with Supabase auth later
+      if (password === 'lovemelikeyoudo') {
+        // Store authentication status in session storage
+        sessionStorage.setItem('adminAuthenticated', 'true');
+        toast.success('Login successful');
+        navigate(from, { replace: true });
       } else {
-        toast.error("Incorrect password. Please try again.");
+        setError('Invalid password');
+        toast.error('Invalid password');
       }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('An error occurred. Please try again.');
+      toast.error('Login failed');
+    } finally {
       setIsLoading(false);
-    }, 800); // Small delay to simulate verification
+    }
   };
 
   return (
-    <div className="container py-12 animate-fade-in flex flex-col items-center justify-center min-h-[80vh]">
+    <div className="container py-12 flex items-center justify-center min-h-[80vh] animate-fade-in">
       <Card className="w-full max-w-md p-6">
         <div className="flex flex-col items-center mb-6">
-          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-            <Shield className="h-6 w-6 text-primary" />
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <Lock className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold">Admin Access</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Enter the password to access the admin dashboard
+          <h1 className="text-2xl font-bold">Admin Login</h1>
+          <p className="text-muted-foreground text-center mt-2">
+            Enter your password to access the admin dashboard
           </p>
         </div>
 
@@ -54,15 +63,24 @@ const AdminLogin = () => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter admin password"
+              placeholder="Enter your password"
               required
             />
+            {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Verifying..." : "Login"}
+            {isLoading ? 'Logging in...' : 'Login'}
           </Button>
         </form>
+
+        <div className="mt-6 text-center">
+          <Button variant="link" asChild>
+            <a href="/" className="text-sm text-muted-foreground">
+              Return to homepage
+            </a>
+          </Button>
+        </div>
       </Card>
     </div>
   );

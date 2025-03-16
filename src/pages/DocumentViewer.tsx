@@ -5,63 +5,29 @@ import { ChevronLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PDFViewer } from '@/components/PDFViewer';
 import { EmptyState } from '@/components/EmptyState';
+import { dataService, ContentItem } from '@/services/dataService';
 
-// Mock data - In a real app, this would be fetched from Supabase
-const MOCK_DOCUMENTS = {
-  'eng-pdf-1': {
-    title: 'First Flight Textbook',
-    description: 'Complete NCERT textbook for Class 10 English',
-    url: 'https://ncert.nic.in/textbook/pdf/jeff1dd.zip', // Example URL
-    subject: 'english'
-  },
-  'eng-pdf-2': {
-    title: 'Footprints without Feet',
-    description: 'Supplementary reader for Class 10 English',
-    url: 'https://ncert.nic.in/textbook/pdf/jefp1dd.zip', // Example URL
-    subject: 'english'
-  },
-  'eng-notes-1': {
-    title: 'Grammar Notes',
-    description: 'Comprehensive notes on English grammar',
-    url: 'https://www.exampleurl.com/documents/grammar-notes.pdf', // Placeholder
-    subject: 'english'
-  },
-  'math-pdf-1': {
-    title: 'Mathematics NCERT',
-    description: 'Complete mathematics textbook with all chapters',
-    url: 'https://ncert.nic.in/textbook/pdf/jemh1dd.zip', // Example URL
-    subject: 'mathematics'
-  },
-  'math-notes-1': {
-    title: 'Algebraic Expressions',
-    description: 'Detailed notes on solving algebraic expressions',
-    url: 'https://www.exampleurl.com/documents/algebra-notes.pdf', // Placeholder
-    subject: 'mathematics'
-  },
-  'math-notes-2': {
-    title: 'Trigonometry Formulas',
-    description: 'All important formulas and identities',
-    url: 'https://www.exampleurl.com/documents/trig-formulas.pdf', // Placeholder
-    subject: 'mathematics'
-  },
-};
-
-// Placeholder PDF URL for demo purposes
+// Placeholder PDF URL for demo purposes until file storage is implemented
 const PLACEHOLDER_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf';
 
 const DocumentViewer = () => {
   const { subjectId, documentId } = useParams<{ subjectId: string; documentId: string }>();
-  const [document, setDocument] = useState<any | null>(null);
+  const [document, setDocument] = useState<ContentItem | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate fetching document from backend
-    setTimeout(() => {
-      if (documentId && MOCK_DOCUMENTS[documentId as keyof typeof MOCK_DOCUMENTS]) {
-        setDocument(MOCK_DOCUMENTS[documentId as keyof typeof MOCK_DOCUMENTS]);
+    const fetchDocument = async () => {
+      setLoading(true);
+      if (documentId) {
+        const documentData = dataService.getContentById(documentId);
+        if (documentData && ['pdf', 'notes', 'worksheet'].includes(documentData.type)) {
+          setDocument(documentData);
+        }
       }
       setLoading(false);
-    }, 1000);
+    };
+
+    fetchDocument();
   }, [documentId]);
 
   if (loading) {
@@ -88,6 +54,9 @@ const DocumentViewer = () => {
     );
   }
 
+  // In a production app, this would use the document's actual URL from storage
+  const documentUrl = document.url || PLACEHOLDER_PDF;
+
   return (
     <div className="container py-6 animate-fade-in">
       <Button variant="ghost" asChild className="mb-4">
@@ -104,7 +73,7 @@ const DocumentViewer = () => {
 
       <div className="bg-card rounded-lg shadow-lg overflow-hidden">
         <PDFViewer
-          url={PLACEHOLDER_PDF} // Using placeholder for demo
+          url={documentUrl}
           title={document.title}
         />
       </div>

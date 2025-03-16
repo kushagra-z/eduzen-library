@@ -6,137 +6,28 @@ import { Button } from '@/components/ui/button';
 import { TestQuestion } from '@/components/TestQuestion';
 import { EmptyState } from '@/components/EmptyState';
 import { Card } from '@/components/ui/card';
-
-// Mock data - In a real app, this would be fetched from Supabase
-const MOCK_TESTS = {
-  'eng-test-1': {
-    id: 'eng-test-1',
-    title: 'Practice Test: Grammar',
-    description: 'Test your understanding of grammar concepts',
-    subject: 'english',
-    instructions: 'Select the correct answer for each question. You can check your answers at the end of the test.',
-    questions: [
-      {
-        id: 'q1',
-        text: 'Which of the following is a proper noun?',
-        options: [
-          { id: 'a', text: 'Boy' },
-          { id: 'b', text: 'New Delhi' },
-          { id: 'c', text: 'Tree' },
-          { id: 'd', text: 'Beautiful' }
-        ],
-        correctAnswerId: 'b',
-        explanation: 'A proper noun is the name of a specific person, place, or thing. "New Delhi" is a specific city name, making it a proper noun.'
-      },
-      {
-        id: 'q2',
-        text: 'Identify the conjunction in the sentence: "She likes tea but hates coffee."',
-        options: [
-          { id: 'a', text: 'She' },
-          { id: 'b', text: 'likes' },
-          { id: 'c', text: 'but' },
-          { id: 'd', text: 'hates' }
-        ],
-        correctAnswerId: 'c',
-        explanation: 'A conjunction is a word that connects clauses or sentences or coordinates words in the same clause. In this sentence, "but" connects the two parts of the sentence.'
-      },
-      {
-        id: 'q3',
-        text: 'What is the past tense of "write"?',
-        options: [
-          { id: 'a', text: 'Wrote' },
-          { id: 'b', text: 'Written' },
-          { id: 'c', text: 'Writed' },
-          { id: 'd', text: 'Writing' }
-        ],
-        correctAnswerId: 'a',
-        explanation: '"Wrote" is the simple past tense of "write". "Written" is the past participle form.'
-      }
-    ]
-  },
-  'math-test-1': {
-    id: 'math-test-1',
-    title: 'Chapter 1-3 Test',
-    description: 'Test covering the first three chapters',
-    subject: 'mathematics',
-    instructions: 'Choose the correct option for each problem. Work out the solutions on paper if needed.',
-    questions: [
-      {
-        id: 'q1',
-        text: 'If x² - 5x + 6 = 0, what are the values of x?',
-        options: [
-          { id: 'a', text: 'x = 2, x = 3' },
-          { id: 'b', text: 'x = -2, x = -3' },
-          { id: 'c', text: 'x = 2, x = -3' },
-          { id: 'd', text: 'x = -2, x = 3' }
-        ],
-        correctAnswerId: 'a',
-        explanation: 'Using the quadratic formula or factoring: x² - 5x + 6 = (x - 2)(x - 3) = 0, which gives x = 2 or x = 3.'
-      },
-      {
-        id: 'q2',
-        text: 'What is the value of sin 30°?',
-        options: [
-          { id: 'a', text: '0' },
-          { id: 'b', text: '1/2' },
-          { id: 'c', text: '1/√2' },
-          { id: 'd', text: '1' }
-        ],
-        correctAnswerId: 'b',
-        explanation: 'sin 30° = 1/2 is one of the standard trigonometric values you should memorize.'
-      }
-    ]
-  },
-  'sci-test-1': {
-    id: 'sci-test-1',
-    title: 'Biology MCQ Test',
-    description: 'Multiple choice questions on life processes',
-    subject: 'science',
-    instructions: 'Select the most appropriate answer for each question.',
-    questions: [
-      {
-        id: 'q1',
-        text: 'Which of the following is NOT a part of the digestive system?',
-        options: [
-          { id: 'a', text: 'Esophagus' },
-          { id: 'b', text: 'Pancreas' },
-          { id: 'c', text: 'Lungs' },
-          { id: 'd', text: 'Small intestine' }
-        ],
-        correctAnswerId: 'c',
-        explanation: 'Lungs are part of the respiratory system, not the digestive system.'
-      },
-      {
-        id: 'q2',
-        text: 'Photosynthesis takes place in which part of the plant cell?',
-        options: [
-          { id: 'a', text: 'Nucleus' },
-          { id: 'b', text: 'Mitochondria' },
-          { id: 'c', text: 'Chloroplast' },
-          { id: 'd', text: 'Vacuole' }
-        ],
-        correctAnswerId: 'c',
-        explanation: 'Chloroplasts contain chlorophyll and are the site of photosynthesis in plant cells.'
-      }
-    ]
-  }
-};
+import { dataService, Test } from '@/services/dataService';
 
 const TestPage = () => {
   const { subjectId, testId } = useParams<{ subjectId: string; testId: string }>();
-  const [test, setTest] = useState<any | null>(null);
+  const [test, setTest] = useState<Test | null>(null);
   const [loading, setLoading] = useState(true);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [showAnswers, setShowAnswers] = useState(false);
 
   useEffect(() => {
-    // Simulate fetching test data from backend
-    setTimeout(() => {
-      if (testId && MOCK_TESTS[testId as keyof typeof MOCK_TESTS]) {
-        setTest(MOCK_TESTS[testId as keyof typeof MOCK_TESTS]);
+    const fetchTest = async () => {
+      setLoading(true);
+      if (testId) {
+        const testData = dataService.getTestById(testId);
+        if (testData) {
+          setTest(testData);
+        }
       }
       setLoading(false);
-    }, 1000);
+    };
+
+    fetchTest();
   }, [testId]);
 
   const handleAnswerSelect = (questionId: string, optionId: string) => {
@@ -210,7 +101,7 @@ const TestPage = () => {
       </div>
 
       <div className="space-y-6 mb-8">
-        {test.questions.map((question: any, index: number) => (
+        {test.questions.map((question, index) => (
           <TestQuestion 
             key={question.id}
             questionNumber={index + 1}
