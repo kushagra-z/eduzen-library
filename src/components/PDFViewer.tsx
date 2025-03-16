@@ -26,7 +26,7 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
   useEffect(() => {
     console.log('PDF URL received:', url);
     // Only use placeholder if url is undefined or empty string
-    if (!url) {
+    if (!url || url.trim() === '') {
       console.log('Using placeholder PDF');
       setPdfUrl(PLACEHOLDER_PDF);
     } else {
