@@ -15,13 +15,19 @@ const VideoPage = () => {
   useEffect(() => {
     const fetchVideo = async () => {
       setLoading(true);
-      if (videoId) {
-        const videoData = dataService.getContentById(videoId);
-        if (videoData && videoData.type === 'video') {
-          setVideo(videoData);
+      try {
+        if (videoId) {
+          // Properly await the Promise
+          const videoData = await dataService.getContentById(videoId);
+          if (videoData && videoData.type === 'video') {
+            setVideo(videoData);
+          }
         }
+      } catch (error) {
+        console.error("Error fetching video:", error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchVideo();

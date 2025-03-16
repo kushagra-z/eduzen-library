@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ContentTypeSection } from '@/components/ContentTypeSection';
@@ -23,9 +24,14 @@ const SubjectPage = () => {
         if (foundSubject) {
           setSubject(foundSubject);
           
-          // Get content for this subject
-          const subjectContent = dataService.getContentBySubject(subjectId);
-          setContent(subjectContent);
+          // Get content for this subject - properly await the Promise
+          try {
+            const subjectContent = await dataService.getContentBySubject(subjectId);
+            setContent(subjectContent);
+          } catch (error) {
+            console.error("Error fetching content:", error);
+            setContent([]);
+          }
         }
       }
       setLoading(false);
