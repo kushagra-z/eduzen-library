@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { SubjectCard } from '@/components/SubjectCard';
 import { Input } from '@/components/ui/input';
-import { Loader2, Search, Book, BookOpen, Calculator, Flask, Globe } from 'lucide-react';
+import { Loader2, Search, Book, BookOpen, Calculator, Beaker, Globe } from 'lucide-react';
 import { dataService, Subject } from '@/services/dataService';
 
 const HomePage = () => {
@@ -21,7 +21,7 @@ const HomePage = () => {
       case 'mathematics':
         return <Calculator className="h-6 w-6 text-white" />;
       case 'science':
-        return <Flask className="h-6 w-6 text-white" />;
+        return <Beaker className="h-6 w-6 text-white" />;
       case 'social-studies':
         return <Globe className="h-6 w-6 text-white" />;
       default:
