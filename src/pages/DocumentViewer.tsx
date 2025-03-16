@@ -16,10 +16,18 @@ const DocumentViewer = () => {
     const fetchDocument = async () => {
       setLoading(true);
       if (documentId) {
+        console.log('Fetching document with ID:', documentId);
         const documentData = dataService.getContentById(documentId);
+        console.log('Document data fetched:', documentData);
+        
         if (documentData && ['pdf', 'notes', 'worksheet'].includes(documentData.type)) {
+          console.log('Document URL:', documentData.url);
           setDocument(documentData);
+        } else {
+          console.error('Document not found or not of correct type');
         }
+      } else {
+        console.error('No document ID provided');
       }
       setLoading(false);
     };
@@ -50,6 +58,9 @@ const DocumentViewer = () => {
       </div>
     );
   }
+
+  // Log the document URL for debugging
+  console.log('Rendering document with URL:', document.url);
 
   return (
     <div className="container py-6 animate-fade-in">

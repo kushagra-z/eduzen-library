@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ChevronLeft, ChevronRight, Download, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,11 +21,22 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [scale, setScale] = useState<number>(1.0);
   const [error, setError] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string>('');
 
-  // Use the provided URL or fallback to placeholder
-  const pdfUrl = url || PLACEHOLDER_PDF;
+  useEffect(() => {
+    console.log('PDF URL received:', url);
+    // Only use placeholder if url is undefined or empty string
+    if (!url) {
+      console.log('Using placeholder PDF');
+      setPdfUrl(PLACEHOLDER_PDF);
+    } else {
+      console.log('Using provided PDF URL:', url);
+      setPdfUrl(url);
+    }
+  }, [url]);
   
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+    console.log('PDF loaded successfully with', numPages, 'pages');
     setNumPages(numPages);
     setLoading(false);
     setError(null);
@@ -52,6 +63,15 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
   const zoomOut = () => {
     setScale(prev => Math.max(prev - 0.2, 0.5));
   };
+
+  if (!pdfUrl) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96">
+        <p className="text-destructive mb-2">No document URL provided</p>
+        <p className="text-sm text-muted-foreground">Please provide a valid PDF URL</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full h-full">
