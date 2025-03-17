@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, Loader2 } from 'lucide-react';
@@ -42,10 +43,17 @@ const DocumentViewer = () => {
               if (documentData.storagePath) {
                 console.log('Document has storage path, attempting to get public URL:', documentData.storagePath);
                 try {
+                  // Remove leading "documents/" if present to prevent path duplication
+                  let storagePath = documentData.storagePath;
+                  if (storagePath.startsWith('documents/')) {
+                    storagePath = storagePath.replace('documents/', '');
+                    console.log('Removed leading documents/ from path:', storagePath);
+                  }
+                  
                   const { data: storageData } = await supabase
                     .storage
                     .from('documents')
-                    .getPublicUrl(documentData.storagePath);
+                    .getPublicUrl(storagePath);
                   
                   if (storageData && storageData.publicUrl) {
                     console.log('Retrieved public URL:', storageData.publicUrl);

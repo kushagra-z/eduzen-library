@@ -292,8 +292,10 @@ class DataService {
     // Upload file to Supabase Storage if available
     if (item.file && ['pdf', 'notes', 'worksheet'].includes(item.type)) {
       try {
-        // Create a unique path for the file
+        // Create a unique path for the file - without 'documents/' prefix, it will be added by the bucket
         storagePath = `${item.subjectId}/${item.type}/${Date.now()}_${item.file.name}`;
+        
+        console.log('Uploading file to storage path:', storagePath);
         
         const { data, error } = await supabase
           .storage

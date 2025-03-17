@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ChevronLeft, ChevronRight, Download, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
@@ -42,6 +43,8 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
           
           // Extract the path from the URL if it's a full Supabase URL
           let storagePath = url;
+          
+          // If it's a full URL with /object/public/ in it, extract the path properly
           if (url.includes('/object/public/')) {
             const parts = url.split('/object/public/');
             if (parts.length > 1) {
@@ -54,6 +57,13 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
           if (storagePath.startsWith('/storage/v1/object/public/')) {
             storagePath = storagePath.replace('/storage/v1/object/public/', '');
             console.log('Adjusted storage path:', storagePath);
+          }
+          
+          // Remove leading "documents/" from the path if present
+          // This is crucial to fix the path duplication issue
+          if (storagePath.startsWith('documents/')) {
+            storagePath = storagePath.replace('documents/', '');
+            console.log('Removed leading documents/ from path:', storagePath);
           }
           
           // Get a fresh public URL with cache-busting timestamp
