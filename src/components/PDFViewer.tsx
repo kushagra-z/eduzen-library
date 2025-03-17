@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ChevronLeft, ChevronRight, Download, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
@@ -24,22 +25,32 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
   const [pdfUrl, setPdfUrl] = useState<string>('');
 
   useEffect(() => {
-    console.log('PDF URL received:', url);
+    console.log('PDF URL received in PDFViewer:', url);
     
     if (!url || url.trim() === '') {
-      console.log('Using placeholder PDF');
+      console.log('No valid URL provided, using placeholder PDF');
       setPdfUrl(PLACEHOLDER_PDF);
-    } else {
-      console.log('Using provided PDF URL:', url);
-      // Check if URL is valid before setting it
-      try {
-        new URL(url); // This will throw an error if URL is invalid
+      return;
+    }
+    
+    // Check if URL is valid before setting it
+    try {
+      // Handle relative URLs from Supabase Storage
+      if (url.startsWith('/')) {
+        console.log('Converting relative URL to absolute');
+        const absoluteUrl = new URL(url, window.location.origin).href;
+        console.log('Converted to absolute URL:', absoluteUrl);
+        setPdfUrl(absoluteUrl);
+      } else {
+        // Try to parse the URL to validate it
+        new URL(url);
+        console.log('Using valid PDF URL:', url);
         setPdfUrl(url);
-      } catch (e) {
-        console.error('Invalid URL provided:', url, e);
-        toast.error('Invalid document URL');
-        setPdfUrl(PLACEHOLDER_PDF);
       }
+    } catch (e) {
+      console.error('Invalid URL format:', url, e);
+      toast.error('Invalid document URL format');
+      setPdfUrl(PLACEHOLDER_PDF);
     }
   }, [url]);
   

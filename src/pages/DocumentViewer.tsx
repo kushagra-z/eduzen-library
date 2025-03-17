@@ -23,11 +23,33 @@ const DocumentViewer = () => {
           console.log('Document data fetched:', documentData);
           
           if (documentData && ['pdf', 'notes', 'worksheet'].includes(documentData.type)) {
-            console.log('Document URL:', documentData.url);
-            if (!documentData.url) {
-              console.error('Document has no URL');
-              toast.error('Document has no URL');
+            console.log('Document URL from database:', documentData.url);
+            
+            if (!documentData.url || documentData.url.trim() === '') {
+              console.error('Document has no URL in database');
+              
+              // If the document has a storage path but no URL, attempt to get a public URL
+              if (documentData.storagePath) {
+                console.log('Document has storage path, attempting to get public URL');
+                try {
+                  const { data: storageData } = await supabase
+                    .storage
+                    .from('documents')
+                    .getPublicUrl(documentData.storagePath);
+                  
+                  if (storageData && storageData.publicUrl) {
+                    console.log('Retrieved public URL:', storageData.publicUrl);
+                    documentData.url = storageData.publicUrl;
+                  }
+                } catch (storageError) {
+                  console.error('Error getting public URL:', storageError);
+                  toast.error('Could not retrieve document URL from storage');
+                }
+              } else {
+                toast.error('Document has no URL or storage path');
+              }
             }
+            
             setDocument(documentData);
           } else {
             console.error('Document not found or not of correct type');
@@ -85,14 +107,14 @@ const DocumentViewer = () => {
       </Button>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">{document?.title}</h1>
-        <p className="text-muted-foreground">{document?.description}</p>
+        <h1 className="text-2xl font-bold mb-2">{document.title}</h1>
+        <p className="text-muted-foreground">{document.description}</p>
       </div>
 
       <div className="bg-card rounded-lg shadow-lg overflow-hidden">
         <PDFViewer
-          url={document?.url}
-          title={document?.title || 'Document'}
+          url={document.url}
+          title={document.title || 'Document'}
         />
       </div>
     </div>
