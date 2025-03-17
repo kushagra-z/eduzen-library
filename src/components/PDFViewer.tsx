@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ChevronLeft, ChevronRight, Download, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 // Set workerSrc
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
@@ -25,13 +25,21 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
 
   useEffect(() => {
     console.log('PDF URL received:', url);
-    // Only use placeholder if url is undefined or empty string
+    
     if (!url || url.trim() === '') {
       console.log('Using placeholder PDF');
       setPdfUrl(PLACEHOLDER_PDF);
     } else {
       console.log('Using provided PDF URL:', url);
-      setPdfUrl(url);
+      // Check if URL is valid before setting it
+      try {
+        new URL(url); // This will throw an error if URL is invalid
+        setPdfUrl(url);
+      } catch (e) {
+        console.error('Invalid URL provided:', url, e);
+        toast.error('Invalid document URL');
+        setPdfUrl(PLACEHOLDER_PDF);
+      }
     }
   }, [url]);
   
@@ -46,6 +54,7 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
     console.error('Error loading PDF:', err);
     setLoading(false);
     setError(`Failed to load PDF: ${err.message}`);
+    toast.error(`Failed to load PDF: ${err.message}`);
   };
 
   const goToPrevPage = () => {

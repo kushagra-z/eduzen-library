@@ -24,6 +24,10 @@ const DocumentViewer = () => {
           
           if (documentData && ['pdf', 'notes', 'worksheet'].includes(documentData.type)) {
             console.log('Document URL:', documentData.url);
+            if (!documentData.url) {
+              console.error('Document has no URL');
+              toast.error('Document has no URL');
+            }
             setDocument(documentData);
           } else {
             console.error('Document not found or not of correct type');
@@ -81,14 +85,14 @@ const DocumentViewer = () => {
       </Button>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">{document.title}</h1>
-        <p className="text-muted-foreground">{document.description}</p>
+        <h1 className="text-2xl font-bold mb-2">{document?.title}</h1>
+        <p className="text-muted-foreground">{document?.description}</p>
       </div>
 
       <div className="bg-card rounded-lg shadow-lg overflow-hidden">
         <PDFViewer
-          url={document.url}
-          title={document.title}
+          url={document?.url}
+          title={document?.title || 'Document'}
         />
       </div>
     </div>
