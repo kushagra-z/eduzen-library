@@ -22,14 +22,7 @@ const DocumentViewer = () => {
           console.log('Fetching document with ID:', documentId);
           
           // Try to get content from Supabase directly first
-          // This is useful for IDs in UUID format
           let documentData = await dataService.getContentById(documentId);
-          
-          if (!documentData && documentId.includes('-')) {
-            // Handle legacy IDs that may not be UUIDs
-            console.log('Using legacy ID handling for:', documentId);
-            documentData = await dataService.getContentById(documentId);
-          }
           
           console.log('Document data fetched:', documentData);
           
@@ -43,11 +36,11 @@ const DocumentViewer = () => {
               if (documentData.storagePath) {
                 console.log('Document has storage path, attempting to get public URL:', documentData.storagePath);
                 try {
-                  // Remove leading "documents/" if present to prevent path duplication
+                  // Remove any bucket prefix to prevent path duplication
                   let storagePath = documentData.storagePath;
                   if (storagePath.startsWith('documents/')) {
                     storagePath = storagePath.replace('documents/', '');
-                    console.log('Removed leading documents/ from path:', storagePath);
+                    console.log('Removed bucket prefix from path:', storagePath);
                   }
                   
                   const { data: storageData } = await supabase

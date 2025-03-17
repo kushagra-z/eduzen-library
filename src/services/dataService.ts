@@ -253,10 +253,17 @@ class DataService {
         let url = data.file_url || data.external_link;
         
         if (data.storage_path) {
+          // Important: Remove 'documents/' prefix if it exists
+          let storagePath = data.storage_path;
+          if (storagePath.startsWith('documents/')) {
+            storagePath = storagePath.replace('documents/', '');
+            console.log('Removed bucket prefix from path:', storagePath);
+          }
+          
           const { data: storageData } = await supabase
             .storage
             .from('documents')
-            .getPublicUrl(data.storage_path);
+            .getPublicUrl(storagePath);
           
           if (storageData && storageData.publicUrl) {
             url = storageData.publicUrl;
@@ -292,7 +299,8 @@ class DataService {
     // Upload file to Supabase Storage if available
     if (item.file && ['pdf', 'notes', 'worksheet'].includes(item.type)) {
       try {
-        // Create a unique path for the file - without 'documents/' prefix, it will be added by the bucket
+        // Create storage path WITHOUT the bucket name prefix
+        // This is critical - do not include 'documents/' in the path
         storagePath = `${item.subjectId}/${item.type}/${Date.now()}_${item.file.name}`;
         
         console.log('Uploading file to storage path:', storagePath);
@@ -307,6 +315,7 @@ class DataService {
         
         if (error) {
           console.error('Error uploading file to storage:', error);
+          toast.error(`Upload error: ${error.message}`);
         } else if (data) {
           console.log('File uploaded successfully:', data.path);
           
@@ -323,6 +332,9 @@ class DataService {
         }
       } catch (error) {
         console.error('File upload error:', error);
+        if (error instanceof Error) {
+          toast.error(`File upload error: ${error.message}`);
+        }
       }
     }
     
@@ -344,6 +356,7 @@ class DataService {
       
       if (error) {
         console.error('Error adding content to Supabase:', error);
+        toast.error(`Database error: ${error.message}`);
       } else if (data) {
         console.log('Content added to Supabase:', data);
         
@@ -369,6 +382,9 @@ class DataService {
       }
     } catch (error) {
       console.error('Error in Supabase operation:', error);
+      if (error instanceof Error) {
+        toast.error(`Database error: ${error.message}`);
+      }
     }
     
     // Fallback to local storage if Supabase fails
@@ -537,7 +553,7 @@ class DataService {
     return success;
   }
 
-  // Test methods (keeping local for now, can be migrated to Supabase later)
+  // Test methods - keeping local for now
   public getTests(subjectId?: string): Test[] {
     if (subjectId) {
       return this.tests.filter(test => test.subject === subjectId);

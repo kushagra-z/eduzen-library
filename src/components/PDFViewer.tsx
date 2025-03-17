@@ -59,11 +59,11 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
             console.log('Adjusted storage path:', storagePath);
           }
           
-          // Remove leading "documents/" from the path if present
-          // This is crucial to fix the path duplication issue
+          // Remove any bucket prefix from the path
+          // Check both 'documents/' and bucket_id/
           if (storagePath.startsWith('documents/')) {
             storagePath = storagePath.replace('documents/', '');
-            console.log('Removed leading documents/ from path:', storagePath);
+            console.log('Removed bucket prefix from path:', storagePath);
           }
           
           // Get a fresh public URL with cache-busting timestamp
