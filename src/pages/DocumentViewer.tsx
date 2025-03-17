@@ -7,6 +7,7 @@ import { PDFViewer } from '@/components/PDFViewer';
 import { EmptyState } from '@/components/EmptyState';
 import { dataService, ContentItem } from '@/services/dataService';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const DocumentViewer = () => {
   const { subjectId, documentId } = useParams<{ subjectId: string; documentId: string }>();
