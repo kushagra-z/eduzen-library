@@ -4,6 +4,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import { ChevronLeft, ChevronRight, Download, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 // Set workerSrc
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
@@ -23,36 +24,82 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
   const [scale, setScale] = useState<number>(1.0);
   const [error, setError] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string>('');
+  const [retryCount, setRetryCount] = useState<number>(0);
 
   useEffect(() => {
     console.log('PDF URL received in PDFViewer:', url);
     
-    if (!url || url.trim() === '') {
-      console.log('No valid URL provided, using placeholder PDF');
-      setPdfUrl(PLACEHOLDER_PDF);
-      return;
-    }
-    
-    // Check if URL is valid before setting it
-    try {
-      // Handle relative URLs from Supabase Storage
-      if (url.startsWith('/')) {
-        console.log('Converting relative URL to absolute');
-        const absoluteUrl = new URL(url, window.location.origin).href;
-        console.log('Converted to absolute URL:', absoluteUrl);
-        setPdfUrl(absoluteUrl);
-      } else {
-        // Try to parse the URL to validate it
-        new URL(url);
-        console.log('Using valid PDF URL:', url);
-        setPdfUrl(url);
+    const processPdfUrl = async () => {
+      if (!url || url.trim() === '') {
+        console.log('No valid URL provided, using placeholder PDF');
+        setPdfUrl(PLACEHOLDER_PDF);
+        return;
       }
-    } catch (e) {
-      console.error('Invalid URL format:', url, e);
-      toast.error('Invalid document URL format');
-      setPdfUrl(PLACEHOLDER_PDF);
-    }
-  }, [url]);
+      
+      try {
+        // Check if URL is a storage path
+        if (url.includes('supabase.co/storage') || url.startsWith('/storage/')) {
+          console.log('Processing Supabase storage URL:', url);
+          
+          // Extract the path from the URL if it's a full Supabase URL
+          let storagePath = url;
+          if (url.includes('/object/public/')) {
+            const parts = url.split('/object/public/');
+            if (parts.length > 1) {
+              storagePath = parts[1];
+              console.log('Extracted storage path:', storagePath);
+            }
+          }
+          
+          // If it's not a full URL but just a path like "/storage/v1/..."
+          if (storagePath.startsWith('/storage/v1/object/public/')) {
+            storagePath = storagePath.replace('/storage/v1/object/public/', '');
+            console.log('Adjusted storage path:', storagePath);
+          }
+          
+          // Get a fresh public URL with cache-busting timestamp
+          try {
+            const timestamp = new Date().getTime();
+            console.log('Attempting to get fresh URL for storage path:', storagePath);
+            
+            const { data: storageData, error: storageError } = await supabase
+              .storage
+              .from('documents')
+              .getPublicUrl(storagePath);
+            
+            if (storageError) {
+              console.error('Error getting public URL:', storageError);
+              throw new Error(`Failed to get storage URL: ${storageError.message}`);
+            }
+            
+            if (storageData && storageData.publicUrl) {
+              // Add cache-busting parameter
+              const urlWithCacheBust = `${storageData.publicUrl}?t=${timestamp}`;
+              console.log('Fresh public URL with cache-busting:', urlWithCacheBust);
+              setPdfUrl(urlWithCacheBust);
+            } else {
+              console.error('No public URL returned from Supabase');
+              setPdfUrl(url); // Fallback to original URL
+            }
+          } catch (err) {
+            console.error('Error processing storage URL:', err);
+            setPdfUrl(url); // Fallback to original URL
+          }
+        } else {
+          // Handle regular URLs
+          new URL(url); // Validate URL
+          console.log('Using valid PDF URL:', url);
+          setPdfUrl(url);
+        }
+      } catch (e) {
+        console.error('Invalid URL format:', url, e);
+        toast.error('Invalid document URL format');
+        setPdfUrl(PLACEHOLDER_PDF);
+      }
+    };
+    
+    processPdfUrl();
+  }, [url, retryCount]);
   
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     console.log('PDF loaded successfully with', numPages, 'pages');
@@ -82,6 +129,12 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
 
   const zoomOut = () => {
     setScale(prev => Math.max(prev - 0.2, 0.5));
+  };
+
+  const retryLoading = () => {
+    setError(null);
+    setLoading(true);
+    setRetryCount(prev => prev + 1);
   };
 
   if (!pdfUrl) {
@@ -164,9 +217,14 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
               <p className="text-sm text-muted-foreground mb-4">
                 {!url ? 'No document URL provided.' : 'The document may be invalid or inaccessible.'}
               </p>
-              <Button variant="outline" onClick={() => window.open(pdfUrl, '_blank')}>
-                Open in new tab
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => window.open(pdfUrl, '_blank')}>
+                  Open in new tab
+                </Button>
+                <Button variant="secondary" onClick={retryLoading}>
+                  Retry
+                </Button>
+              </div>
             </div>
           }
         >

@@ -20,33 +20,52 @@ const DocumentViewer = () => {
       try {
         if (documentId) {
           console.log('Fetching document with ID:', documentId);
-          const documentData = await dataService.getContentById(documentId);
+          
+          // Try to get content from Supabase directly first
+          // This is useful for IDs in UUID format
+          let documentData = await dataService.getContentById(documentId);
+          
+          if (!documentData && documentId.includes('-')) {
+            // Handle legacy IDs that may not be UUIDs
+            console.log('Using legacy ID handling for:', documentId);
+            documentData = await dataService.getContentById(documentId);
+          }
+          
           console.log('Document data fetched:', documentData);
           
           if (documentData && ['pdf', 'notes', 'worksheet'].includes(documentData.type)) {
             console.log('Document URL from database:', documentData.url);
             
             if (!documentData.url || documentData.url.trim() === '') {
-              console.error('Document has no URL in database');
+              console.log('Document has no URL in database');
               
               // If the document has a storage path but no URL, attempt to get a public URL
               if (documentData.storagePath) {
-                console.log('Document has storage path, attempting to get public URL');
+                console.log('Document has storage path, attempting to get public URL:', documentData.storagePath);
                 try {
-                  const { data: storageData } = await supabase
+                  const { data: storageData, error: storageError } = await supabase
                     .storage
                     .from('documents')
                     .getPublicUrl(documentData.storagePath);
                   
+                  if (storageError) {
+                    console.error('Error getting public URL:', storageError);
+                    throw storageError;
+                  }
+                  
                   if (storageData && storageData.publicUrl) {
                     console.log('Retrieved public URL:', storageData.publicUrl);
                     documentData.url = storageData.publicUrl;
+                  } else {
+                    console.error('No public URL returned from storage');
+                    toast.error('Could not retrieve document URL from storage');
                   }
                 } catch (storageError) {
                   console.error('Error getting public URL:', storageError);
                   toast.error('Could not retrieve document URL from storage');
                 }
               } else {
+                console.error('Document has no URL or storage path');
                 toast.error('Document has no URL or storage path');
               }
             }
