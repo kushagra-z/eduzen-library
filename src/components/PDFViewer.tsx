@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ChevronLeft, ChevronRight, Download, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
@@ -62,15 +61,10 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
             const timestamp = new Date().getTime();
             console.log('Attempting to get fresh URL for storage path:', storagePath);
             
-            const { data: storageData, error: storageError } = await supabase
+            const { data: storageData } = await supabase
               .storage
               .from('documents')
               .getPublicUrl(storagePath);
-            
-            if (storageError) {
-              console.error('Error getting public URL:', storageError);
-              throw new Error(`Failed to get storage URL: ${storageError.message}`);
-            }
             
             if (storageData && storageData.publicUrl) {
               // Add cache-busting parameter

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, Loader2 } from 'lucide-react';
@@ -43,15 +42,10 @@ const DocumentViewer = () => {
               if (documentData.storagePath) {
                 console.log('Document has storage path, attempting to get public URL:', documentData.storagePath);
                 try {
-                  const { data: storageData, error: storageError } = await supabase
+                  const { data: storageData } = await supabase
                     .storage
                     .from('documents')
                     .getPublicUrl(documentData.storagePath);
-                  
-                  if (storageError) {
-                    console.error('Error getting public URL:', storageError);
-                    throw storageError;
-                  }
                   
                   if (storageData && storageData.publicUrl) {
                     console.log('Retrieved public URL:', storageData.publicUrl);
@@ -115,7 +109,7 @@ const DocumentViewer = () => {
   }
 
   // Log the document URL for debugging
-  console.log('Rendering document with URL:', document.url);
+  console.log('Rendering document with URL:', document?.url);
 
   return (
     <div className="container py-6 animate-fade-in">
@@ -127,14 +121,14 @@ const DocumentViewer = () => {
       </Button>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">{document.title}</h1>
-        <p className="text-muted-foreground">{document.description}</p>
+        <h1 className="text-2xl font-bold mb-2">{document?.title}</h1>
+        <p className="text-muted-foreground">{document?.description}</p>
       </div>
 
       <div className="bg-card rounded-lg shadow-lg overflow-hidden">
         <PDFViewer
-          url={document.url}
-          title={document.title || 'Document'}
+          url={document?.url}
+          title={document?.title || 'Document'}
         />
       </div>
     </div>
