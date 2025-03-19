@@ -56,51 +56,8 @@ class DataService {
   private initialized = false;
 
   constructor() {
-    // Keep local storage for now as fallback, but we'll primarily use Supabase
-    this.loadFromLocalStorage();
-    
     // Initialize with default subjects if none exist
-    if (!this.initialized) {
-      this.initializeDefaultData();
-      this.saveToLocalStorage();
-      this.initialized = true;
-    }
-  }
-
-  private loadFromLocalStorage() {
-    try {
-      const subjectsData = localStorage.getItem('subjects');
-      const contentData = localStorage.getItem('content');
-      const testsData = localStorage.getItem('tests');
-
-      if (subjectsData) {
-        this.subjects = JSON.parse(subjectsData);
-      }
-
-      if (contentData) {
-        this.content = JSON.parse(contentData);
-      }
-
-      if (testsData) {
-        this.tests = JSON.parse(testsData);
-      }
-
-      if (subjectsData || contentData || testsData) {
-        this.initialized = true;
-      }
-    } catch (error) {
-      console.error('Error loading data from localStorage:', error);
-    }
-  }
-
-  private saveToLocalStorage() {
-    try {
-      localStorage.setItem('subjects', JSON.stringify(this.subjects));
-      localStorage.setItem('content', JSON.stringify(this.content));
-      localStorage.setItem('tests', JSON.stringify(this.tests));
-    } catch (error) {
-      console.error('Error saving data to localStorage:', error);
-    }
+    this.initializeDefaultData();
   }
 
   private initializeDefaultData() {
@@ -148,10 +105,9 @@ class DataService {
     return this.subjects.find(subject => subject.id === id);
   }
 
-  // Content methods - now with Supabase integration
+  // Content methods with Supabase integration
   public async getContentBySubject(subjectId: string): Promise<ContentItem[]> {
     try {
-      // Try to fetch from Supabase first
       const { data, error } = await supabase
         .from('content')
         .select('*')
@@ -159,33 +115,28 @@ class DataService {
       
       if (error) {
         console.error('Supabase error fetching content:', error);
-        // Fallback to local data
-        return this.content.filter(item => item.subjectId === subjectId);
+        throw error;
       }
       
-      if (data && data.length > 0) {
-        console.log('Found content in Supabase for subject:', subjectId, data);
-        // Transform Supabase data to our ContentItem format
-        return data.map(item => ({
-          id: item.id,
-          title: item.title,
-          description: item.description,
-          type: item.content_type as any,
-          subjectId: item.subject,
-          url: item.file_url || item.external_link,
-          youtubeId: item.external_link?.includes('youtube') ? this.extractYoutubeId(item.external_link) : undefined,
-          storagePath: item.storage_path,
-          createdAt: item.created_at,
-          updatedAt: item.updated_at
-        }));
+      if (!data) {
+        return [];
       }
-      
-      // If no data in Supabase, return local data
-      console.log('No content found in Supabase, returning local data for subject:', subjectId);
-      return this.content.filter(item => item.subjectId === subjectId);
+
+      return data.map(item => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        type: item.content_type as ContentItem['type'],
+        subjectId: item.subject,
+        url: item.file_url || item.external_link,
+        youtubeId: item.external_link?.includes('youtube') ? this.extractYoutubeId(item.external_link) : undefined,
+        storagePath: item.storage_path,
+        createdAt: item.created_at,
+        updatedAt: item.updated_at
+      }));
     } catch (error) {
       console.error('Error fetching content:', error);
-      return this.content.filter(item => item.subjectId === subjectId);
+      throw error;
     }
   }
 
@@ -317,12 +268,8 @@ class DataService {
     // Upload file to Supabase Storage if available
     if (item.file && ['pdf', 'notes', 'worksheet'].includes(item.type)) {
       try {
-        // Create a unique filename to avoid collisions
         const fileExtension = item.file.name.split('.').pop() || '';
         const uniqueFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}.${fileExtension}`;
-        
-        // Create storage path WITHOUT the bucket name prefix
-        // This is critical - do not include 'documents/' in the path
         storagePath = `${item.subjectId}/${item.type}/${uniqueFileName}`;
         
         console.log('Uploading file to storage path:', storagePath);
@@ -337,26 +284,27 @@ class DataService {
         
         if (error) {
           console.error('Error uploading file to storage:', error);
-          toast.error(`Upload error: ${error.message}`);
-        } else if (data) {
-          console.log('File uploaded successfully:', data.path);
-          
-          // Get the public URL
-          const { data: urlData } = await supabase
-            .storage
-            .from('documents')
-            .getPublicUrl(storagePath);
-          
-          if (urlData) {
-            fileUrl = urlData.publicUrl;
-            console.log('Public URL:', fileUrl);
-          }
+          throw new Error(`File upload failed: ${error.message}`);
+        }
+        
+        if (!data) {
+          throw new Error('File upload failed: No data returned from storage');
+        }
+        
+        console.log('File uploaded successfully:', data.path);
+        
+        const { data: urlData } = await supabase
+          .storage
+          .from('documents')
+          .getPublicUrl(storagePath);
+        
+        if (urlData) {
+          fileUrl = urlData.publicUrl;
+          console.log('Public URL:', fileUrl);
         }
       } catch (error) {
         console.error('File upload error:', error);
-        if (error instanceof Error) {
-          toast.error(`File upload error: ${error.message}`);
-        }
+        throw error;
       }
     }
     
@@ -378,52 +326,29 @@ class DataService {
       
       if (error) {
         console.error('Error adding content to Supabase:', error);
-        toast.error(`Database error: ${error.message}`);
-      } else if (data) {
-        console.log('Content added to Supabase:', data);
-        
-        // Create the complete content item with the ID from Supabase
-        const newItem: ContentItem = {
-          id: data.id,
-          title: data.title,
-          description: data.description,
-          type: data.content_type as any,
-          subjectId: data.subject,
-          url: fileUrl || data.external_link,
-          youtubeId: item.youtubeId,
-          storagePath: data.storage_path,
-          createdAt: data.created_at,
-          updatedAt: data.updated_at
-        };
-        
-        // Also add to local data for redundancy
-        this.content.push(newItem);
-        this.saveToLocalStorage();
-        
-        return newItem;
+        throw new Error(`Database insert failed: ${error.message}`);
       }
+      
+      if (!data) {
+        throw new Error('Database insert failed: No data returned');
+      }
+      
+      return {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        type: data.content_type as ContentItem['type'],
+        subjectId: data.subject,
+        url: fileUrl || data.external_link,
+        youtubeId: item.youtubeId,
+        storagePath: data.storage_path,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      };
     } catch (error) {
       console.error('Error in Supabase operation:', error);
-      if (error instanceof Error) {
-        toast.error(`Database error: ${error.message}`);
-      }
+      throw error;
     }
-    
-    // Fallback to local storage if Supabase fails
-    console.log('Falling back to local storage for content');
-    const localItem = {
-      ...item,
-      id: `${item.subjectId}-${item.type}-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      url: fileUrl,
-      storagePath
-    };
-    
-    console.log('Created local item:', localItem);
-    this.content.push(localItem);
-    this.saveToLocalStorage();
-    return localItem;
   }
 
   public async updateContent(id: string, updates: Partial<ContentItem>): Promise<ContentItem | undefined> {
@@ -489,7 +414,6 @@ class DataService {
             storagePath: storagePath || data.storage_path,
             updatedAt: data.updated_at
           };
-          this.saveToLocalStorage();
         }
         
         return {
@@ -517,7 +441,6 @@ class DataService {
         ...updates,
         updatedAt: new Date().toISOString()
       };
-      this.saveToLocalStorage();
       return this.content[index];
     }
     
@@ -555,11 +478,7 @@ class DataService {
         this.content = this.content.filter(item => item.id !== id);
         const success = initialLength > this.content.length;
         
-        if (success) {
-          this.saveToLocalStorage();
-        }
-        
-        return true;
+        return success;
       }
     } catch (error) {
       console.error('Error in delete operation:', error);
@@ -569,10 +488,6 @@ class DataService {
     const initialLength = this.content.length;
     this.content = this.content.filter(item => item.id !== id);
     const success = initialLength > this.content.length;
-    
-    if (success) {
-      this.saveToLocalStorage();
-    }
     
     return success;
   }
@@ -598,7 +513,6 @@ class DataService {
     };
 
     this.tests.push(newTest);
-    this.saveToLocalStorage();
     return newTest;
   }
 
@@ -610,7 +524,6 @@ class DataService {
         ...updates,
         updatedAt: new Date().toISOString()
       };
-      this.saveToLocalStorage();
       return this.tests[index];
     }
     return undefined;
@@ -620,9 +533,6 @@ class DataService {
     const initialLength = this.tests.length;
     this.tests = this.tests.filter(test => test.id !== id);
     const success = initialLength > this.tests.length;
-    if (success) {
-      this.saveToLocalStorage();
-    }
     return success;
   }
 
@@ -631,9 +541,61 @@ class DataService {
     this.subjects = [];
     this.content = [];
     this.tests = [];
-    this.saveToLocalStorage();
   }
 }
 
 // Create a singleton instance
 export const dataService = new DataService();
+
+// Test function to verify upload functionality
+export async function testUploadFunctionality() {
+  try {
+    // Test 1: Upload a PDF file
+    console.log('Testing PDF upload...');
+    const pdfContent = {
+      title: 'Test PDF Document',
+      description: 'This is a test PDF document',
+      type: 'pdf' as const,
+      subjectId: 'english',
+      file: new File(['Test PDF Content'], 'test.pdf', { type: 'application/pdf' })
+    };
+    
+    const pdfResult = await dataService.addContent(pdfContent);
+    console.log('PDF upload result:', pdfResult);
+    
+    // Test 2: Add a video content
+    console.log('Testing video content...');
+    const videoContent = {
+      title: 'Test Video',
+      description: 'This is a test video',
+      type: 'video' as const,
+      subjectId: 'english',
+      youtubeId: 'dQw4w9WgXcQ'
+    };
+    
+    const videoResult = await dataService.addContent(videoContent);
+    console.log('Video content result:', videoResult);
+    
+    // Test 3: Verify content retrieval
+    console.log('Testing content retrieval...');
+    const englishContent = await dataService.getContentBySubject('english');
+    console.log('Retrieved English content:', englishContent);
+    
+    return {
+      success: true,
+      message: 'All upload tests completed successfully',
+      results: {
+        pdf: pdfResult,
+        video: videoResult,
+        retrieved: englishContent
+      }
+    };
+  } catch (error) {
+    console.error('Upload test failed:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error occurred',
+      error
+    };
+  }
+}

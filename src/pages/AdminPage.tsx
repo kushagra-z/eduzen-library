@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -250,7 +250,11 @@ const AdminPage = () => {
       
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error('Failed to upload content. Please try again.');
+      if (error instanceof Error) {
+        toast.error(`Upload failed: ${error.message}`);
+      } else {
+        toast.error('Failed to upload content. Please check your connection and try again.');
+      }
       setUploading(false);
       setUploadProgress(0);
     } finally {
@@ -394,6 +398,15 @@ const AdminPage = () => {
               Manage Content
             </TabsTrigger>
           </TabsList>
+          
+          <div className="flex justify-end mb-4">
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin/upload-test">
+                <FileUp className="mr-2 h-4 w-4" />
+                Test Upload
+              </Link>
+            </Button>
+          </div>
           
           <TabsContent value="upload" className="space-y-6">
             <Card className="p-6">

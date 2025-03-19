@@ -2,10 +2,23 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://tpgsmxvsqgzdtrowreqv.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwZ3NteHZzcWd6ZHRyb3dyZXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4ODMyMTcsImV4cCI6MjA1NzQ1OTIxN30.JKSHzLaz5xZfIj85ok166ZsbXamQpkzUcbuLpxSBkv0";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error('Missing Supabase environment variables');
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+// Verify connection
+supabase.from('content').select('count').limit(1).then(({ error }) => {
+  if (error) {
+    console.error('Supabase connection error:', error);
+  } else {
+    console.log('Supabase connected successfully');
+  }
+});

@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +11,7 @@ import VideoPage from "./pages/VideoPage";
 import TestPage from "./pages/TestPage";
 import AdminPage from "./pages/AdminPage";
 import AdminLogin from "./pages/AdminLogin";
+import UploadTest from "./pages/UploadTest";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -36,6 +36,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/upload-test" 
+              element={
+                <ProtectedRoute>
+                  <UploadTest />
                 </ProtectedRoute>
               } 
             />
