@@ -36,6 +36,7 @@ const DocumentViewer = () => {
           const localDoc = localDocuments.find(item => item.id === documentId);
           
           if (localDoc) {
+            console.log('Found document in local data:', localDoc);
             setDocument(localDoc);
           } else {
             toast.error('Document not found in local data');

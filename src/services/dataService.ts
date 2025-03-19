@@ -164,6 +164,7 @@ class DataService {
       }
       
       if (data && data.length > 0) {
+        console.log('Found content in Supabase for subject:', subjectId, data);
         // Transform Supabase data to our ContentItem format
         return data.map(item => ({
           id: item.id,
@@ -180,6 +181,7 @@ class DataService {
       }
       
       // If no data in Supabase, return local data
+      console.log('No content found in Supabase, returning local data for subject:', subjectId);
       return this.content.filter(item => item.subjectId === subjectId);
     } catch (error) {
       console.error('Error fetching content:', error);
@@ -236,7 +238,17 @@ class DataService {
 
   public async getContentById(id: string): Promise<ContentItem | undefined> {
     try {
-      // Try to fetch from Supabase first
+      // Check if the ID looks like a UUID or our custom format
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      
+      if (!isUuid) {
+        console.log('Content ID is not a UUID, using local data source for ID:', id);
+        const localItem = this.content.find(item => item.id === id);
+        console.log('Local item found:', localItem);
+        return localItem;
+      }
+      
+      // Try to fetch from Supabase first for UUID ids
       const { data, error } = await supabase
         .from('content')
         .select('*')
@@ -250,10 +262,12 @@ class DataService {
       }
       
       if (data) {
+        console.log('Found content in Supabase with ID:', id, data);
         // If the content has a file in storage, get a public URL
         let url = data.file_url || data.external_link;
         
         if (data.storage_path) {
+          console.log('Content has storage path:', data.storage_path);
           // Important: Remove 'documents/' prefix if it exists
           let storagePath = data.storage_path;
           if (storagePath.startsWith('documents/')) {
@@ -268,6 +282,7 @@ class DataService {
           
           if (storageData && storageData.publicUrl) {
             url = storageData.publicUrl;
+            console.log('Retrieved public URL for content:', url);
           }
         }
         
@@ -286,6 +301,7 @@ class DataService {
       }
       
       // If no data in Supabase, return local data
+      console.log('No content found in Supabase with ID:', id, 'checking local storage');
       return this.content.find(item => item.id === id);
     } catch (error) {
       console.error('Error fetching content by id:', error);
@@ -294,15 +310,20 @@ class DataService {
   }
 
   public async addContent(item: Omit<ContentItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<ContentItem> {
+    console.log('Adding content:', item);
     let storagePath = '';
     let fileUrl = item.url;
     
     // Upload file to Supabase Storage if available
     if (item.file && ['pdf', 'notes', 'worksheet'].includes(item.type)) {
       try {
+        // Create a unique filename to avoid collisions
+        const fileExtension = item.file.name.split('.').pop() || '';
+        const uniqueFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}.${fileExtension}`;
+        
         // Create storage path WITHOUT the bucket name prefix
         // This is critical - do not include 'documents/' in the path
-        storagePath = `${item.subjectId}/${item.type}/${Date.now()}_${item.file.name}`;
+        storagePath = `${item.subjectId}/${item.type}/${uniqueFileName}`;
         
         console.log('Uploading file to storage path:', storagePath);
         
@@ -389,6 +410,7 @@ class DataService {
     }
     
     // Fallback to local storage if Supabase fails
+    console.log('Falling back to local storage for content');
     const localItem = {
       ...item,
       id: `${item.subjectId}-${item.type}-${Date.now()}`,
@@ -398,6 +420,7 @@ class DataService {
       storagePath
     };
     
+    console.log('Created local item:', localItem);
     this.content.push(localItem);
     this.saveToLocalStorage();
     return localItem;

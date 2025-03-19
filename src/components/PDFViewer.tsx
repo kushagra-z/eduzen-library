@@ -30,7 +30,7 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
     console.log('PDF URL received in PDFViewer:', url);
     
     const processPdfUrl = async () => {
-      if (!url || url.trim() === '') {
+      if (!url || url === undefined || url === "undefined" || url.trim() === '') {
         console.log('No valid URL provided, using placeholder PDF');
         setPdfUrl(PLACEHOLDER_PDF);
         return;
