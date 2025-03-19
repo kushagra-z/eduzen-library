@@ -2,6 +2,7 @@
 // It now integrates with Supabase for persistent storage
 
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // Types to represent our data model
 export interface Subject {
