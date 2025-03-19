@@ -84,6 +84,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

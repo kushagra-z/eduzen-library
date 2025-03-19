@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ChevronLeft, ChevronRight, Download, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
@@ -25,21 +24,31 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
   const [error, setError] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string>('');
   const [retryCount, setRetryCount] = useState<number>(0);
+  const [isPlaceholder, setIsPlaceholder] = useState<boolean>(false);
 
   useEffect(() => {
     console.log('PDF URL received in PDFViewer:', url);
     
     const processPdfUrl = async () => {
+      // Reset placeholder status
+      setIsPlaceholder(false);
+      
       if (!url || url === undefined || url === "undefined" || url.trim() === '') {
         console.log('No valid URL provided, using placeholder PDF');
         setPdfUrl(PLACEHOLDER_PDF);
+        setIsPlaceholder(true);
         return;
       }
       
       try {
-        // Add a timestamp to bust cache
-        const timestamp = new Date().getTime();
+        // Add a timestamp to bust cache if not already present
         let finalUrl = url;
+        if (!url.includes('t=')) {
+          const timestamp = new Date().getTime();
+          const separator = url.includes('?') ? '&' : '?';
+          finalUrl = `${url}${separator}t=${timestamp}`;
+          console.log('Added cache busting to URL:', finalUrl);
+        }
         
         // Check if URL is a storage path
         if (url.includes('supabase.co/storage') || url.startsWith('/storage/')) {
@@ -64,7 +73,6 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
           }
           
           // Remove any bucket prefix from the path
-          // Check both 'documents/' and bucket_id/
           if (storagePath.startsWith('documents/')) {
             storagePath = storagePath.replace('documents/', '');
             console.log('Removed bucket prefix from path:', storagePath);
@@ -81,27 +89,26 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
             
             if (storageData && storageData.publicUrl) {
               // Add cache-busting parameter
+              const timestamp = new Date().getTime();
               finalUrl = `${storageData.publicUrl}?t=${timestamp}`;
               console.log('Fresh public URL with cache-busting:', finalUrl);
             } else {
               console.error('No public URL returned from Supabase');
-              finalUrl = `${url}?t=${timestamp}`; // Still add cache busting to original URL
+              // Still try the original URL if we couldn't get a fresh one
             }
           } catch (err) {
             console.error('Error processing storage URL:', err);
-            finalUrl = `${url}?t=${timestamp}`; // Fallback to original URL with cache busting
+            // Fallback to original URL
           }
-        } else {
-          // For non-Supabase URLs, just add cache busting
-          finalUrl = `${url}?t=${timestamp}`;
-          console.log('Using valid PDF URL with cache busting:', finalUrl);
         }
         
+        console.log('Final PDF URL to use:', finalUrl);
         setPdfUrl(finalUrl);
       } catch (e) {
         console.error('Invalid URL format:', url, e);
         toast.error('Invalid document URL format');
         setPdfUrl(PLACEHOLDER_PDF);
+        setIsPlaceholder(true);
       }
     };
     
@@ -119,7 +126,11 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
     console.error('Error loading PDF:', err);
     setLoading(false);
     setError(`Failed to load PDF: ${err.message}`);
-    toast.error(`Failed to load PDF: ${err.message}`);
+    
+    // Only show toast if not using placeholder already
+    if (!isPlaceholder) {
+      toast.error(`Failed to load PDF: ${err.message}`);
+    }
   };
 
   const goToPrevPage = () => {
@@ -156,7 +167,10 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
   return (
     <div className="flex flex-col w-full h-full">
       <div className="bg-secondary p-4 rounded-t-lg flex justify-between items-center">
-        <h2 className="text-lg font-medium truncate">{title}</h2>
+        <h2 className="text-lg font-medium truncate">
+          {title}
+          {isPlaceholder && <span className="text-destructive ml-2">(Placeholder)</span>}
+        </h2>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">
             {pageNumber} / {numPages || '?'}
@@ -164,7 +178,7 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={goToPrevPage} 
+            onClick={() => goToPrevPage()}
             disabled={pageNumber <= 1}
           >
             <ChevronLeft className="h-4 w-4" />
@@ -172,7 +186,7 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={goToNextPage} 
+            onClick={() => goToNextPage()}
             disabled={pageNumber >= (numPages || 1)}
           >
             <ChevronRight className="h-4 w-4" />
@@ -180,7 +194,7 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={zoomOut}
+            onClick={() => zoomOut()}
             disabled={scale <= 0.5}
           >
             <ZoomOut className="h-4 w-4" />
@@ -188,7 +202,7 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={zoomIn}
+            onClick={() => zoomIn()}
             disabled={scale >= 2.5}
           >
             <ZoomIn className="h-4 w-4" />
@@ -228,7 +242,11 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
                 <Button variant="outline" onClick={() => window.open(pdfUrl, '_blank')}>
                   Open in new tab
                 </Button>
-                <Button variant="secondary" onClick={retryLoading}>
+                <Button variant="secondary" onClick={() => {
+                  setError(null);
+                  setLoading(true);
+                  setRetryCount(prev => prev + 1);
+                }}>
                   Retry
                 </Button>
               </div>

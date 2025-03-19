@@ -53,10 +53,10 @@ const DocumentViewer = () => {
         if (documentData && ['pdf', 'notes', 'worksheet'].includes(documentData.type)) {
           console.log('Document URL from database:', documentData.url);
           
-          if (!documentData.url || documentData.url.trim() === '') {
+          if (!documentData.url || documentData.url.trim() === '' || documentData.url === 'undefined') {
             console.log('Document has no URL in database');
             
-            // If the document has a storage path but no URL, attempt to get a public URL
+            // If the document has a storage path but no URL, attempt to get a fresh public URL
             if (documentData.storagePath) {
               console.log('Document has storage path, attempting to get public URL:', documentData.storagePath);
               try {
@@ -67,6 +67,9 @@ const DocumentViewer = () => {
                   console.log('Removed bucket prefix from path:', storagePath);
                 }
                 
+                // Add timestamp to bust cache
+                const timestamp = new Date().getTime();
+                
                 const { data: storageData } = await supabase
                   .storage
                   .from('documents')
@@ -74,7 +77,13 @@ const DocumentViewer = () => {
                 
                 if (storageData && storageData.publicUrl) {
                   console.log('Retrieved public URL:', storageData.publicUrl);
-                  documentData.url = storageData.publicUrl;
+                  
+                  // Add timestamp for cache busting
+                  documentData.url = `${storageData.publicUrl}?t=${timestamp}`;
+                  console.log('Final URL with cache busting:', documentData.url);
+                  
+                  // Also update the record in the database with the fresh URL
+                  await dataService.updateContent(documentId, { url: documentData.url });
                 } else {
                   console.error('No public URL returned from storage');
                   toast.error('Could not retrieve document URL from storage');
@@ -87,6 +96,12 @@ const DocumentViewer = () => {
               console.error('Document has no URL or storage path');
               toast.error('Document has no URL or storage path');
             }
+          } else {
+            // Add cache busting to existing URL
+            const timestamp = new Date().getTime();
+            const separator = documentData.url.includes('?') ? '&' : '?';
+            documentData.url = `${documentData.url}${separator}t=${timestamp}`;
+            console.log('Added cache busting to existing URL:', documentData.url);
           }
           
           setDocument(documentData);
