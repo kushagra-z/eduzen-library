@@ -26,48 +26,93 @@ const DocumentViewer = () => {
         
         console.log('Fetching document with ID:', documentId);
         
-        // Check if the ID looks like a UUID or our custom format
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(documentId);
-        
-        if (!isUuid) {
-          console.log('Document ID is not a UUID, using local data source');
-          // For custom IDs, use local data source
-          const localDocuments = await dataService.getContentBySubject(subjectId || '');
-          const localDoc = localDocuments.find(item => item.id === documentId);
+        // Always try to get content from Supabase first
+        try {
+          console.log('Attempting to fetch document from Supabase');
           
-          if (localDoc) {
-            console.log('Found document in local data:', localDoc);
-            setDocument(localDoc);
-          } else {
-            toast.error('Document not found in local data');
+          const { data: supabaseData, error } = await supabase
+            .from('content')
+            .select('*')
+            .eq('id', documentId)
+            .maybeSingle();
+          
+          if (error) {
+            console.error('Supabase query error:', error);
           }
-          setLoading(false);
-          return;
+          
+          // If we found the document in Supabase
+          if (supabaseData) {
+            console.log('Document found in Supabase:', supabaseData);
+            
+            let fileUrl = supabaseData.file_url || supabaseData.external_link;
+            
+            // If the document has a storage path, get a fresh public URL
+            if (supabaseData.storage_path) {
+              console.log('Document has storage path, getting public URL:', supabaseData.storage_path);
+              
+              // Remove any bucket prefix to prevent path duplication
+              let storagePath = supabaseData.storage_path;
+              if (storagePath.startsWith('documents/')) {
+                storagePath = storagePath.replace('documents/', '');
+              }
+              
+              // Add timestamp to bust cache
+              const timestamp = new Date().getTime();
+              
+              const { data: storageData } = await supabase
+                .storage
+                .from('documents')
+                .getPublicUrl(storagePath);
+              
+              if (storageData && storageData.publicUrl) {
+                fileUrl = `${storageData.publicUrl}?t=${timestamp}`;
+                console.log('Retrieved public URL with cache busting:', fileUrl);
+              }
+            } else if (fileUrl) {
+              // Add cache busting to existing URL
+              const timestamp = new Date().getTime();
+              const separator = fileUrl.includes('?') ? '&' : '?';
+              fileUrl = `${fileUrl}${separator}t=${timestamp}`;
+              console.log('Added cache busting to existing URL:', fileUrl);
+            }
+            
+            // Create a ContentItem from the Supabase data
+            const documentData: ContentItem = {
+              id: supabaseData.id,
+              title: supabaseData.title,
+              description: supabaseData.description,
+              type: supabaseData.content_type as any,
+              subjectId: supabaseData.subject,
+              url: fileUrl,
+              storagePath: supabaseData.storage_path,
+              createdAt: supabaseData.created_at,
+              updatedAt: supabaseData.updated_at
+            };
+            
+            setDocument(documentData);
+            setLoading(false);
+            return;
+          }
+        } catch (supabaseError) {
+          console.error('Error fetching from Supabase:', supabaseError);
         }
         
-        // Try to get content from Supabase directly
-        let documentData = await dataService.getContentById(documentId);
+        // Fallback to data service which will try both Supabase and local storage
+        console.log('Falling back to data service getContentById');
+        const documentData = await dataService.getContentById(documentId);
         
-        console.log('Document data fetched:', documentData);
-        
-        if (documentData && ['pdf', 'notes', 'worksheet'].includes(documentData.type)) {
-          console.log('Document URL from database:', documentData.url);
+        if (documentData) {
+          console.log('Document found via data service:', documentData);
           
+          // If the document URL is missing or invalid, try to get a fresh URL
           if (!documentData.url || documentData.url.trim() === '' || documentData.url === 'undefined') {
-            console.log('Document has no URL in database');
-            
-            // If the document has a storage path but no URL, attempt to get a fresh public URL
             if (documentData.storagePath) {
-              console.log('Document has storage path, attempting to get public URL:', documentData.storagePath);
               try {
-                // Remove any bucket prefix to prevent path duplication
                 let storagePath = documentData.storagePath;
                 if (storagePath.startsWith('documents/')) {
                   storagePath = storagePath.replace('documents/', '');
-                  console.log('Removed bucket prefix from path:', storagePath);
                 }
                 
-                // Add timestamp to bust cache
                 const timestamp = new Date().getTime();
                 
                 const { data: storageData } = await supabase
@@ -76,38 +121,42 @@ const DocumentViewer = () => {
                   .getPublicUrl(storagePath);
                 
                 if (storageData && storageData.publicUrl) {
-                  console.log('Retrieved public URL:', storageData.publicUrl);
-                  
-                  // Add timestamp for cache busting
                   documentData.url = `${storageData.publicUrl}?t=${timestamp}`;
-                  console.log('Final URL with cache busting:', documentData.url);
+                  console.log('Retrieved public URL with timestamp:', documentData.url);
                   
-                  // Also update the record in the database with the fresh URL
+                  // Update the database record with the fresh URL
                   await dataService.updateContent(documentId, { url: documentData.url });
-                } else {
-                  console.error('No public URL returned from storage');
-                  toast.error('Could not retrieve document URL from storage');
                 }
               } catch (storageError) {
                 console.error('Error getting public URL:', storageError);
-                toast.error('Could not retrieve document URL from storage');
               }
-            } else {
-              console.error('Document has no URL or storage path');
-              toast.error('Document has no URL or storage path');
             }
           } else {
             // Add cache busting to existing URL
             const timestamp = new Date().getTime();
             const separator = documentData.url.includes('?') ? '&' : '?';
             documentData.url = `${documentData.url}${separator}t=${timestamp}`;
-            console.log('Added cache busting to existing URL:', documentData.url);
           }
           
           setDocument(documentData);
         } else {
-          console.error('Document not found or not of correct type');
-          toast.error('Document not found or has an invalid format');
+          // If still not found, check local data by subject ID as last resort
+          console.log('Document not found in Supabase or data service, checking local data by subject');
+          if (subjectId) {
+            const localDocuments = await dataService.getContentBySubject(subjectId);
+            const localDoc = localDocuments.find(item => item.id === documentId);
+            
+            if (localDoc) {
+              console.log('Found document in local subject data:', localDoc);
+              setDocument(localDoc);
+            } else {
+              console.error('Document not found in any data source');
+              toast.error('Document not found');
+            }
+          } else {
+            console.error('No subject ID to try local lookup');
+            toast.error('Document not found and no subject ID available');
+          }
         }
       } catch (error) {
         console.error('Error fetching document:', error);
