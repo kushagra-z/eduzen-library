@@ -37,6 +37,10 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
       }
       
       try {
+        // Add a timestamp to bust cache
+        const timestamp = new Date().getTime();
+        let finalUrl = url;
+        
         // Check if URL is a storage path
         if (url.includes('supabase.co/storage') || url.startsWith('/storage/')) {
           console.log('Processing Supabase storage URL:', url);
@@ -68,7 +72,6 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
           
           // Get a fresh public URL with cache-busting timestamp
           try {
-            const timestamp = new Date().getTime();
             console.log('Attempting to get fresh URL for storage path:', storagePath);
             
             const { data: storageData } = await supabase
@@ -78,23 +81,23 @@ export const PDFViewer = ({ url, title }: PDFViewerProps) => {
             
             if (storageData && storageData.publicUrl) {
               // Add cache-busting parameter
-              const urlWithCacheBust = `${storageData.publicUrl}?t=${timestamp}`;
-              console.log('Fresh public URL with cache-busting:', urlWithCacheBust);
-              setPdfUrl(urlWithCacheBust);
+              finalUrl = `${storageData.publicUrl}?t=${timestamp}`;
+              console.log('Fresh public URL with cache-busting:', finalUrl);
             } else {
               console.error('No public URL returned from Supabase');
-              setPdfUrl(url); // Fallback to original URL
+              finalUrl = `${url}?t=${timestamp}`; // Still add cache busting to original URL
             }
           } catch (err) {
             console.error('Error processing storage URL:', err);
-            setPdfUrl(url); // Fallback to original URL
+            finalUrl = `${url}?t=${timestamp}`; // Fallback to original URL with cache busting
           }
         } else {
-          // Handle regular URLs
-          new URL(url); // Validate URL
-          console.log('Using valid PDF URL:', url);
-          setPdfUrl(url);
+          // For non-Supabase URLs, just add cache busting
+          finalUrl = `${url}?t=${timestamp}`;
+          console.log('Using valid PDF URL with cache busting:', finalUrl);
         }
+        
+        setPdfUrl(finalUrl);
       } catch (e) {
         console.error('Invalid URL format:', url, e);
         toast.error('Invalid document URL format');

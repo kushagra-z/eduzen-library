@@ -18,61 +18,80 @@ const DocumentViewer = () => {
     const fetchDocument = async () => {
       setLoading(true);
       try {
-        if (documentId) {
-          console.log('Fetching document with ID:', documentId);
+        if (!documentId) {
+          toast.error('No document ID provided');
+          setLoading(false);
+          return;
+        }
+        
+        console.log('Fetching document with ID:', documentId);
+        
+        // Check if the ID looks like a UUID or our custom format
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(documentId);
+        
+        if (!isUuid) {
+          console.log('Document ID is not a UUID, using local data source');
+          // For custom IDs, use local data source
+          const localDocuments = await dataService.getContentBySubject(subjectId || '');
+          const localDoc = localDocuments.find(item => item.id === documentId);
           
-          // Try to get content from Supabase directly first
-          let documentData = await dataService.getContentById(documentId);
+          if (localDoc) {
+            setDocument(localDoc);
+          } else {
+            toast.error('Document not found in local data');
+          }
+          setLoading(false);
+          return;
+        }
+        
+        // Try to get content from Supabase directly
+        let documentData = await dataService.getContentById(documentId);
+        
+        console.log('Document data fetched:', documentData);
+        
+        if (documentData && ['pdf', 'notes', 'worksheet'].includes(documentData.type)) {
+          console.log('Document URL from database:', documentData.url);
           
-          console.log('Document data fetched:', documentData);
-          
-          if (documentData && ['pdf', 'notes', 'worksheet'].includes(documentData.type)) {
-            console.log('Document URL from database:', documentData.url);
+          if (!documentData.url || documentData.url.trim() === '') {
+            console.log('Document has no URL in database');
             
-            if (!documentData.url || documentData.url.trim() === '') {
-              console.log('Document has no URL in database');
-              
-              // If the document has a storage path but no URL, attempt to get a public URL
-              if (documentData.storagePath) {
-                console.log('Document has storage path, attempting to get public URL:', documentData.storagePath);
-                try {
-                  // Remove any bucket prefix to prevent path duplication
-                  let storagePath = documentData.storagePath;
-                  if (storagePath.startsWith('documents/')) {
-                    storagePath = storagePath.replace('documents/', '');
-                    console.log('Removed bucket prefix from path:', storagePath);
-                  }
-                  
-                  const { data: storageData } = await supabase
-                    .storage
-                    .from('documents')
-                    .getPublicUrl(storagePath);
-                  
-                  if (storageData && storageData.publicUrl) {
-                    console.log('Retrieved public URL:', storageData.publicUrl);
-                    documentData.url = storageData.publicUrl;
-                  } else {
-                    console.error('No public URL returned from storage');
-                    toast.error('Could not retrieve document URL from storage');
-                  }
-                } catch (storageError) {
-                  console.error('Error getting public URL:', storageError);
+            // If the document has a storage path but no URL, attempt to get a public URL
+            if (documentData.storagePath) {
+              console.log('Document has storage path, attempting to get public URL:', documentData.storagePath);
+              try {
+                // Remove any bucket prefix to prevent path duplication
+                let storagePath = documentData.storagePath;
+                if (storagePath.startsWith('documents/')) {
+                  storagePath = storagePath.replace('documents/', '');
+                  console.log('Removed bucket prefix from path:', storagePath);
+                }
+                
+                const { data: storageData } = await supabase
+                  .storage
+                  .from('documents')
+                  .getPublicUrl(storagePath);
+                
+                if (storageData && storageData.publicUrl) {
+                  console.log('Retrieved public URL:', storageData.publicUrl);
+                  documentData.url = storageData.publicUrl;
+                } else {
+                  console.error('No public URL returned from storage');
                   toast.error('Could not retrieve document URL from storage');
                 }
-              } else {
-                console.error('Document has no URL or storage path');
-                toast.error('Document has no URL or storage path');
+              } catch (storageError) {
+                console.error('Error getting public URL:', storageError);
+                toast.error('Could not retrieve document URL from storage');
               }
+            } else {
+              console.error('Document has no URL or storage path');
+              toast.error('Document has no URL or storage path');
             }
-            
-            setDocument(documentData);
-          } else {
-            console.error('Document not found or not of correct type');
-            toast.error('Document not found or has an invalid format');
           }
+          
+          setDocument(documentData);
         } else {
-          console.error('No document ID provided');
-          toast.error('No document ID provided');
+          console.error('Document not found or not of correct type');
+          toast.error('Document not found or has an invalid format');
         }
       } catch (error) {
         console.error('Error fetching document:', error);
@@ -83,7 +102,7 @@ const DocumentViewer = () => {
     };
 
     fetchDocument();
-  }, [documentId]);
+  }, [documentId, subjectId]);
 
   if (loading) {
     return (
